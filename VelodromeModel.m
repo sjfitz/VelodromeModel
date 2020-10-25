@@ -48,8 +48,6 @@ function Track = VelodromeModel(Y, R, n, L_L, Space, FileName)
 % 
 % Shaun Fitzgerald
 % Created 2020-10-25 
-% 
-% This is a test to see if things change on GitHub
 
 %% Inputs 
 arguments

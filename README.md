@@ -1,6 +1,6 @@
 # VelodromeModel
 
-VelodromeModel creates a velodrome track black-line model that consists of two straights, two circular arc bends and four transition curves between the bends and the straights. The transition curves follow the form of a clothoid (also known as a Euler spiral or Cornu spiral). A clothoid has the unique property that its curvature is a polynomial (usually linear) function of its arc length. This provides controlling of the centripetal acceleration during cornering and has G2 parametric continuity.
+VelodromeModel creates a velodrome track black-line model that consists of two straights, two circular arc bends and four transition curves between the bends and the straights. The transition curves follow the form of a clothoid (also known as a Euler spiral or Cornu spiral). A clothoid has the unique property that its curvature is a polynomial (usually linear) function of its arc length. This provides controlling of the centripetal acceleration during cornering and has G2 geometric continuity.
 
 The features that define the track are:
    * L_L: The lap length. This is generally a known, fixed value. 

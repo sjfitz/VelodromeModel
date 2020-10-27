@@ -5,7 +5,7 @@ function Track = VelodromeModel(Y, R, n, L_L, Space, FileName)
 % (also known as a Euler spiral or Cornu spiral). A clothoid has the unique 
 % property that its curvature is a polynomial (usually linear) function of its 
 % arc length. This provides controlling of the centripetal acceleration during 
-% cornering and has G2 parametric continuity. 
+% cornering and has G2 geometric continuity. 
 % 
 % The features that define the track are:
 %   L_L     The lap length. This is generally a known, fixed value. 
@@ -18,6 +18,9 @@ function Track = VelodromeModel(Y, R, n, L_L, Space, FileName)
 % Example usage:
 %   Track = VelodromeModel(Y, R, n, L_L, Space, FileName)
 %   Track = VelodromeModel(22, 21, 1, 250, 0.25, 'TrackData.csv')
+% 
+% figure; plot(Track.X, Track.Y); axis equal
+% figure; plot(Track.Lap, Track.Curvature); 
 % 
 % Inputs
 %   Y           (1 x 1 double) [m]      Half-width between the two straights.
@@ -48,8 +51,6 @@ function Track = VelodromeModel(Y, R, n, L_L, Space, FileName)
 % 
 % Shaun Fitzgerald
 % Created 2020-10-25 
-% 
-% This is a test to see if things change on GitHub
 
 %% Inputs 
 arguments
@@ -67,7 +68,7 @@ assert(n > 0, 'The exponent n must be > 0')
 assert(Space < L_L/25, 'The data spacing must be much less than the lap length')
 assert(2*pi*Y < L_L, 'The half-width Y must be < L_L/(2*pi).')
 
-nDataP = 5000;     % [#] Number of data points for internal calculations
+nDataP = 1000;     % [#] Number of data points for internal calculations
 
 %% Clothoid calculations 
 % Primary bounds for Y/R - Checking if the solution is feasible  
@@ -84,11 +85,11 @@ assert(1 < Y/R && Y/R < YonR_Max, sprintf(...
 % Solving for A with the Newton–Raphson method.
 % The starting value is found by solving the first-degree Maclaurin polynomial
 A0 = ((Y/R-1)*(n+2)*(n+1))^(1/2/(n+1)); 
-dA = 1;
+Er = 1;
 cc = 0;
-while abs(dA) > 1e-13
+while abs(Er) > 1e-13
     A1 = A0*(1-1/n) - (R*cos(A0^(n+1)/(n+1)) - Y)/(n*R*A0^(n-1)*IS(A0, n));
-    dA = A1 - A0;
+    Er = A1 - A0;
     A0 = A1;
     cc = cc + 1;
     if cc > 1000, error('Newton–Raphson method not converged'); end
@@ -99,22 +100,22 @@ A = A1;
 a   = R*A^n;                                    % [m]   Scale factor
 X   = R*A^n*IC(A, n) - R*sin(A^(n+1)/(n+1));    % [m]   X-coord of the end bend
 psi = A^(n+1)/(n+1);                            % [rad] Tangential angle 
-phi = pi/2 - psi;                               % [rad] Bend open angle
+theta = pi/2 - psi;                             % [rad] Bend open angle
 L_T = R*A^(n+1);                                % [m]   Transition length
-L_B = phi*R;                                    % [m]   Bend length 
+L_B = theta*R;                                  % [m]   Bend length 
 L_S = L_L/4 - L_T - L_B;                        % [m]   Straight length 
 
 % Per parametric distance t
 t = linspace(0, A, nDataP)';                    % [-]   Eqn parameter
-% This can be replaced with a parfor loop for a significant speed improvement.
-parfor ii = 1:nDataP
+% This can be optionally replaced with a parfor loop for a speed improvement.
+for ii = 1:nDataP
     x(ii,1) = a*IC(t(ii), n);                   % [m]   x coordinate
     y(ii,1) = a*IS(t(ii), n);                   % [m]   y coordinate
 end
-s       = R*A^n*t;                              % [m]   Arc length
+s       = R*A^n*t;                              % [m]    Arc length
 kappa   = t.^n/R/A^n;                           % [m^-1] Curvature
 dkOnds  = n*t.^(n-1)/R^2/A^(2*n);               % [m^-2] Curvature derivative
-psi_t   = t.^(n+1)/(n+1);                       % [rad] Tangential angle
+psi_t   = t.^(n+1)/(n+1);                       % [rad]  Tangential angle
 
 % Moving the origin to the centre of the velodrome
 xT  = x + L_S;
@@ -130,14 +131,14 @@ Edge.Str_Edge(3,:) = [-L_S, -Y];
 Edge.Str_Edge(4,:) = [-L_S,  Y]; 
 
 % Edge points of the circular bend arcs
-Edge.cba_Edge(1,:) = [ xBc + R*cos(phi), yBc - R*sin(phi)];
-Edge.cba_Edge(2,:) = [ xBc + R*cos(phi), yBc + R*sin(phi)];
-Edge.cba_Edge(3,:) = [-xBc - R*cos(phi), yBc + R*sin(phi)];
-Edge.cba_Edge(4,:) = [-xBc - R*cos(phi), yBc - R*sin(phi)];
+Edge.Cba_Edge(1,:) = [ xBc + R*cos(theta), yBc - R*sin(theta)];
+Edge.Cba_Edge(2,:) = [ xBc + R*cos(theta), yBc + R*sin(theta)];
+Edge.Cba_Edge(3,:) = [-xBc - R*cos(theta), yBc + R*sin(theta)];
+Edge.Cba_Edge(4,:) = [-xBc - R*cos(theta), yBc - R*sin(theta)];
 
 % Centre of the circular bend arc
-Edge.cba_Centre(1,:) = [ xBc, yBc];
-Edge.cba_Centre(2,:) = [-xBc, yBc];
+Edge.Cba_Centre(1,:) = [ xBc, yBc];
+Edge.Cba_Centre(2,:) = [-xBc, yBc];
 
 % Transition curves
 XY.Trn1 = [ xT,  yT];
@@ -151,9 +152,9 @@ XY.Str2 = [linspace( L_S, -L_S, nDataP)',  Y*ones(nDataP, 1)];
 XY.Str3 = [linspace(-L_S,    0, nDataP)', -Y*ones(nDataP, 1)];
 
 % Circular bends 
-theta   = linspace(-phi, phi, nDataP)';         % [rad] Arc angle
-XY.Cba1 = [ xBc + R*cos(theta),        yBc + R*sin(theta)];
-XY.Cba2 = [-xBc + R*cos(theta + pi),   yBc + R*sin(theta + pi)];
+th   = linspace(-theta, theta, nDataP)';         % [rad] Arc angle
+XY.Cba1 = [ xBc + R*cos(th),        yBc + R*sin(th)];
+XY.Cba2 = [-xBc + R*cos(th + pi),   yBc + R*sin(th + pi)];
 
 %% Lap distance and subsequent parameters
 %%%%% Lap distance 
@@ -167,7 +168,7 @@ Lap.Str1 = dsS;
 Lap.Str2 = 1*L_S + 2*L_T + 2*L_B + 2*dsS;
 Lap.Str3 = 3*L_S + 4*L_T + 4*L_B + 1*dsS;
 
-dsC = R*linspace(0, 2*phi, nDataP)';
+dsC = R*linspace(0, 2*theta, nDataP)';
 Lap.Cba1 = 1*L_S + 1*L_T + dsC;
 Lap.Cba2 = 3*L_S + 3*L_T + 2*L_B + dsC;
 
@@ -199,16 +200,16 @@ CurvOnDs.Cba2 = zeros(nDataP,1);
 
 %%%%% Tangential angle 
 Tangent.Trn1 = psi_t;
-Tangent.Trn2 = -flipud(psi_t) + 2*phi + 2*psi;
+Tangent.Trn2 = -flipud(psi_t) + 2*theta + 2*psi;
 Tangent.Trn3 = psi_t + pi;
-Tangent.Trn4 = -flipud(psi_t) + 2*phi + 2*psi + pi;
+Tangent.Trn4 = -flipud(psi_t) + 2*theta + 2*psi + pi;
 
 Tangent.Str1 = zeros(nDataP,1);
 Tangent.Str2 = zeros(nDataP,1) +   pi;
 Tangent.Str3 = zeros(nDataP,1) + 2*pi;
 
-Tangent.Cba1 = theta +   pi/2;
-Tangent.Cba2 = theta + 3*pi/2;
+Tangent.Cba1 = th + 1/2*pi;
+Tangent.Cba2 = th + 3/2*pi;
 
 %% Combining the data into one (unequally spaced) lap distance 
 Comb.Lap = [...
@@ -287,7 +288,7 @@ Info.L_Lap      = L_L;
 Info.L_Str      = L_S;
 Info.L_Trn      = L_T;
 Info.L_cba      = L_B;
-Info.phi        = phi;
+Info.theta      = theta;
 Info.psi        = psi;
 Info.a          = a;
 Info.A          = A;

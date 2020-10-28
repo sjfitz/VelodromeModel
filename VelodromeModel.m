@@ -1,4 +1,4 @@
-function Track = VelodromeModel(Y, R, n, L_L, Space, FileName)
+function Track = VelodromeModel(Y, R, n, L_L, Resolution, FileName)
 % VelodromeModel creates a velodrome track black-line model that consists of 
 % two straights, two circular arc bends and four transition curves between the 
 % bends and the straights. The transition curves follow the form of a clothoid
@@ -15,31 +15,31 @@ function Track = VelodromeModel(Y, R, n, L_L, Space, FileName)
 % The ratio of inputs Y/R has a limited range of feasible solutions dependent on
 % L_L, R, & n that are checked before calculations begin. 
 % 
-% Example usage:
-%   Track = VelodromeModel(Y, R, n, L_L, Space, FileName)
-%   Track = VelodromeModel(22, 21, 1, 250, 0.25, 'TrackData.csv')
+% Track = VelodromeModel(Y, R, n, L_L, Resolution, FileName)
 % 
-% figure; plot(Track.X, Track.Y); axis equal
-% figure; plot(Track.Lap, Track.Curvature); 
+% Example usage:
+%   Track = VelodromeModel(22, 21, 1, 250, 0.25, 'TrackData.csv')
+%   figure; plot(Track.X, Track.Y); axis equal
+%   figure; plot(Track.Lap, Track.Curvature); 
 % 
 % Inputs
 %   Y           (1 x 1 double) [m]      Half-width between the two straights.
 %                   Limits: Y < L_L/(2*pi). See paper for further limits. 
 %   R           (1 x 1 double) [m]      Radius of the circular bend arc.
-%                   Limits: R < Y. See paper for further limits. 
+%                   Limits: R < Y.          See paper for further limits. 
 %   n           (1 x 1 double) [-]      Curvature exponent. 
-%                   Limits: n > 0. Default 1.
+%                   Limits: n > 0.          Default 1.
 %   L_L         (1 x 1 double) [m]      Lap length. 
-%                   Limits: L_L > 2*pi*R. Default 250.
-%   Space       (1 x 1 double) [m]      Resolution of output data points. 
+%                                           Default 250.
+%   Resolution  (1 x 1 double) [m]      Resolution of output data points. 
 %                   Default 1. (Every 1 m along the datum line). 
 %   FileName    (1 x m char)            Filename/path to save the output data.
 %                   If FileName is not entered then the data will not be saved.
 %                   File type based on extension: .txt, .dat, .csv, .xls, .xlsx
 % 
-% Output
+% Output 
 %   Data     	(m x 7 table) A table of the data vs track distance.
-%                       m = L_L/Space + 1. 
+%                       m = L_L/Resolution + 1. 
 %               Variables:
 %                   Lap         [m]     Lap distance from the pursuit line
 %                   Curvature   [m^-1]  Track curvature
@@ -48,8 +48,10 @@ function Track = VelodromeModel(Y, R, n, L_L, Space, FileName)
 %                   Y           [m]     y-coordinate
 %                   dkOnds      [m^-2]  Track curvature derivative w.r.t. Lap
 %                   Tangent     [rad]   Tangential angle
+%               Also has two structures 'Info' and 'Edge' in the table
+%               custom properties that records calculation details. 
 % 
-% Shaun Fitzgerald
+% Shaun Fitzgerald 
 % Created 2020-10-25 
 
 %% Inputs 
@@ -58,14 +60,14 @@ arguments
     R           (1,1) double
     n           (1,1) double = 1
     L_L         (1,1) double = 250
-    Space       (1,1) double = 1
+    Resolution  (1,1) double = 1
     FileName    (:,:) {string, char} = ''
 end
 
 % Basic bounds
 assert(R < Y, 'The radius R must be < Y')
 assert(n > 0, 'The exponent n must be > 0')
-assert(Space < L_L/25, 'The data spacing must be much less than the lap length')
+assert(Resolution < L_L/25, 'The resolution must be much less than the lap')
 assert(2*pi*Y < L_L, 'The half-width Y must be < L_L/(2*pi).')
 
 nDataP = 1000;     % [#] Number of data points for internal calculations
@@ -92,7 +94,7 @@ while abs(Er) > 1e-13
     Er = A1 - A0;
     A0 = A1;
     cc = cc + 1;
-    if cc > 1000, error('Newton–Raphson method not converged'); end
+    if cc > 1000, error('Calculation of A not converged'); end
 end
 A = A1;
 
@@ -127,8 +129,8 @@ yBc = 0;
 % Edge points of the straights 
 Edge.Str_Edge(1,:) = [ L_S, -Y];
 Edge.Str_Edge(2,:) = [ L_S,  Y]; 
-Edge.Str_Edge(3,:) = [-L_S, -Y]; 
-Edge.Str_Edge(4,:) = [-L_S,  Y]; 
+Edge.Str_Edge(3,:) = [-L_S,  Y]; 
+Edge.Str_Edge(4,:) = [-L_S, -Y]; 
 
 % Edge points of the circular bend arcs
 Edge.Cba_Edge(1,:) = [ xBc + R*cos(theta), yBc - R*sin(theta)];
@@ -279,7 +281,7 @@ Comb.Tangent = [...
     Tangent.Str3(1:end-1)];
 
 %% Saving the primary information
-Info.Space      = Space;
+Info.Resolution = Resolution;
 Info.n          = n;
 Info.Y          = Y;
 Info.X          = X;
@@ -296,7 +298,7 @@ Info.BendCentre = [xBc, yBc];
 
 %% Creating a consistently spaced table with the data
 Track = table;
-Track.Lap       = (0:Space:L_L)';
+Track.Lap       = (0:Resolution:L_L)';
 Track.X         = interp1(Comb.Lap, Comb.X,         Track.Lap, 'makima');
 Track.Y         = interp1(Comb.Lap, Comb.Y,         Track.Lap, 'makima');
 Track.Curvature = interp1(Comb.Lap, Comb.Curvature, Track.Lap, 'makima');

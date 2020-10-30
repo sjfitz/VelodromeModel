@@ -18,17 +18,17 @@ function Track = VelodromeModel(Y, R, n, L_L, Resolution, FileName)
 % Track = VelodromeModel(Y, R, n, L_L, Resolution, FileName)
 % 
 % Example usage:
-%   Track = VelodromeModel(22, 21, 1, 250, 0.25, 'TrackData.csv')
+%   Track = VelodromeModel(22, 21, 1, 250, 0.25, 'TrackData.csv');
 %   figure; plot(Track.X, Track.Y); axis equal
 %   figure; plot(Track.Lap, Track.Curvature); 
 % 
 % Inputs
 %   Y           (1 x 1 double) [m]      Half-width between the two straights.
-%                   Limits: Y < L_L/(2*pi). See paper for further limits. 
+%                   Limit: Y < L_L/(2*pi).
 %   R           (1 x 1 double) [m]      Radius of the circular bend arc.
-%                   Limits: R < Y.          See paper for further limits. 
+%                   Limit: R < Y.
 %   n           (1 x 1 double) [-]      Curvature exponent. 
-%                   Limits: n > 0.          Default 1.
+%                   Limit: n > 0.           Default 1.
 %   L_L         (1 x 1 double) [m]      Lap length. 
 %                                           Default 250.
 %   Resolution  (1 x 1 double) [m]      Resolution of output data points. 
@@ -42,10 +42,10 @@ function Track = VelodromeModel(Y, R, n, L_L, Resolution, FileName)
 %                       m = L_L/Resolution + 1. 
 %               Variables:
 %                   Lap         [m]     Lap distance from the pursuit line
-%                   Curvature   [m^-1]  Track curvature
-%                   Radius      [m]     Track radius
 %                   X           [m]     x-coordinate
 %                   Y           [m]     y-coordinate
+%                   Curvature   [m^-1]  Track curvature
+%                   Radius      [m]     Track radius
 %                   dkOnds      [m^-2]  Track curvature derivative w.r.t. Lap
 %                   Tangent     [rad]   Tangential angle
 %               Also has two structures 'Info' and 'Edge' in the table
@@ -64,26 +64,26 @@ arguments
     FileName    (:,:) {string, char} = ''
 end
 
+nDataP = 1000; % [#] Number of data points for internal calculations
+
 % Basic bounds
+assert(Y < L_L/(2*pi), 'The half-width Y must be < L_L/(2*pi).')
 assert(R < Y, 'The radius R must be < Y')
 assert(n > 0, 'The exponent n must be > 0')
 assert(Resolution < L_L/25, 'The resolution must be much less than the lap')
-assert(2*pi*Y < L_L, 'The half-width Y must be < L_L/(2*pi).')
 
-nDataP = 1000;     % [#] Number of data points for internal calculations
-
-%% Clothoid calculations 
-% Primary bounds for Y/R - Checking if the solution is feasible  
-if R <= L_L/(2*pi*(n+1))    % From psi < pi/2
-    A_Max = (pi*(n+1)/2)^(1/(n+1));
-else                        % From L_S > 0
-    A_Max = ((L_L/4/R - pi/2)*(n+1)/n)^(1/(n+1));
+% Primary bounds for Y/R
+if R <= L_L/(2*pi*(n+1))    
+    A_Max = (pi/2*(n+1))^(1/(n+1));                     % From psi < pi/2
+else                        
+    A_Max = ((L_L - 2*pi*R)/(4*n*R)*(n+1))^(1/(n+1));   % From L_S > 0
 end
 YonR_Max = A_Max^n*IS(A_Max, n) + cos(A_Max^(n+1)/(n+1));
 assert(1 < Y/R && Y/R < YonR_Max, sprintf(...
     'Y/R (%.3f) must be in the range: 1 < Y/R < %.3f for n = %g & R = %.3f',...
     Y/R, YonR_Max, n, R))
 
+%% Clothoid calculations 
 % Solving for A with the Newton–Raphson method.
 % The starting value is found by solving the first-degree Maclaurin polynomial
 A0 = ((Y/R-1)*(n+2)*(n+1))^(1/2/(n+1)); 
@@ -98,11 +98,11 @@ while abs(Er) > 1e-13
 end
 A = A1;
 
-% Other calculations 
+% Single-value results  
 a   = R*A^n;                                    % [m]   Scale factor
-X   = R*A^n*IC(A, n) - R*sin(A^(n+1)/(n+1));    % [m]   X-coord of the end bend
-psi = A^(n+1)/(n+1);                            % [rad] Tangential angle 
-theta = pi/2 - psi;                             % [rad] Bend open angle
+X   = R*A^n*IC(A, n) - R*sin(A^(n+1)/(n+1));    % [m]   Bend centre X-coord
+psi_1 = A^(n+1)/(n+1);                          % [rad] Tangential angle 
+theta = pi/2 - psi_1;                           % [rad] Bend open angle
 L_T = R*A^(n+1);                                % [m]   Transition length
 L_B = theta*R;                                  % [m]   Bend length 
 L_S = L_L/4 - L_T - L_B;                        % [m]   Straight length 
@@ -117,7 +117,7 @@ end
 s       = R*A^n*t;                              % [m]    Arc length
 kappa   = t.^n/R/A^n;                           % [m^-1] Curvature
 dkOnds  = n*t.^(n-1)/R^2/A^(2*n);               % [m^-2] Curvature derivative
-psi_t   = t.^(n+1)/(n+1);                       % [rad]  Tangential angle
+psi     = t.^(n+1)/(n+1);                       % [rad]  Tangential angle
 
 % Moving the origin to the centre of the velodrome
 xT  = x + L_S;
@@ -154,7 +154,7 @@ XY.Str2 = [linspace( L_S, -L_S, nDataP)',  Y*ones(nDataP, 1)];
 XY.Str3 = [linspace(-L_S,    0, nDataP)', -Y*ones(nDataP, 1)];
 
 % Circular bends 
-th   = linspace(-theta, theta, nDataP)';         % [rad] Arc angle
+th = linspace(-theta, theta, nDataP)';         % [rad] Arc angle
 XY.Cba1 = [ xBc + R*cos(th),        yBc + R*sin(th)];
 XY.Cba2 = [-xBc + R*cos(th + pi),   yBc + R*sin(th + pi)];
 
@@ -201,10 +201,10 @@ CurvOnDs.Cba1 = zeros(nDataP,1);
 CurvOnDs.Cba2 = zeros(nDataP,1);
 
 %%%%% Tangential angle 
-Tangent.Trn1 = psi_t;
-Tangent.Trn2 = -flipud(psi_t) + 2*theta + 2*psi;
-Tangent.Trn3 = psi_t + pi;
-Tangent.Trn4 = -flipud(psi_t) + 2*theta + 2*psi + pi;
+Tangent.Trn1 = psi;
+Tangent.Trn2 = -flipud(psi) + 2*theta + 2*psi_1;
+Tangent.Trn3 = psi + pi;
+Tangent.Trn4 = -flipud(psi) + 2*theta + 2*psi_1 + pi;
 
 Tangent.Str1 = zeros(nDataP,1);
 Tangent.Str2 = zeros(nDataP,1) +   pi;
@@ -281,20 +281,20 @@ Comb.Tangent = [...
     Tangent.Str3(1:end-1)];
 
 %% Saving the primary information
-Info.Resolution = Resolution;
 Info.n          = n;
 Info.Y          = Y;
 Info.X          = X;
+Info.a          = a;
+Info.A          = A;
 Info.R_cba      = R;
 Info.L_Lap      = L_L;
 Info.L_Str      = L_S;
 Info.L_Trn      = L_T;
 Info.L_cba      = L_B;
 Info.theta      = theta;
-Info.psi        = psi;
-Info.a          = a;
-Info.A          = A;
+Info.psi_1      = psi_1;
 Info.BendCentre = [xBc, yBc];
+Info.Resolution = Resolution;
 
 %% Creating a consistently spaced table with the data
 Track = table;
@@ -309,9 +309,10 @@ Track.Tangent   = interp1(Comb.Lap, Comb.Tangent,   Track.Lap, 'makima');
 % Adjusting the tangential angle range to (-pi, +pi)
 % This can be commented out if it is preferred to range in (0, 2*pi)
 Track.Tangent(round(end/2):end) = Track.Tangent(round(end/2):end) - 2*pi;
-Track.Tangent(abs(Track.Tangent) < 1e-14) = 0;  % Floating-point error fix
-Track.Tangent(abs(Track.Tangent - pi) < 1e-14) =  pi;
-Track.Tangent(abs(Track.Tangent + pi) < 1e-14) = -pi;
+% Floating-point error fix
+Track.Tangent(abs(Track.Tangent)        < 1e-14) = 0;  
+Track.Tangent(abs(Track.Tangent - pi)   < 1e-14) =  pi;
+Track.Tangent(abs(Track.Tangent + pi)   < 1e-14) = -pi;
 
 % Setting the track meta data
 Track.Properties.VariableUnits = {'m', 'm', 'm', 'm^-1', 'm', 'm^-2', 'rad'};

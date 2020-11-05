@@ -101,7 +101,7 @@ A = A1;
 % Single-value results  
 a   = R*A^n;                                    % [m]   Scale factor
 X   = R*A^n*IC(A, n) - R*sin(A^(n+1)/(n+1));    % [m]   Bend centre X-coord
-psi_1 = A^(n+1)/(n+1);                          % [rad] Tangential angle 
+psi_1 = A^(n+1)/(n+1);                          % [rad] Bend start tangent angle
 theta = pi/2 - psi_1;                           % [rad] Bend open angle
 L_T = R*A^(n+1);                                % [m]   Transition length
 L_B = theta*R;                                  % [m]   Bend length 
@@ -328,5 +328,5 @@ end
 end
 
 % Clothoid integrals. These could be anonymous functions, but this is ~4% faster
-function Int = IC(t, n), Int = integral(@(x) cos(x.^(n+1)/(n+1)), 0, t); end
-function Int = IS(t, n), Int = integral(@(x) sin(x.^(n+1)/(n+1)), 0, t); end
+function Int = IC(t, n), Int = integral(@(u) cos(u.^(n+1)/(n+1)), 0, t); end
+function Int = IS(t, n), Int = integral(@(u) sin(u.^(n+1)/(n+1)), 0, t); end

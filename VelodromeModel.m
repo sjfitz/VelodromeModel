@@ -1,39 +1,50 @@
 function Track = VelodromeModel(Y, R, n, L_L, Resolution, FileName)
 % VelodromeModel creates a velodrome track black-line model that consists of 
 % two straights, two circular arc bends and four transition curves between the 
-% bends and the straights. The transition curves follow the form of a clothoid
-% (also known as a Euler spiral or Cornu spiral). A clothoid has the unique 
-% property that its curvature is a polynomial (usually linear) function of its 
-% arc length. This provides controlling of the centripetal acceleration during 
-% cornering and has G2 geometric continuity. 
+% bends and the straights. The transition curves are based on two different
+% Cesaro equations where the curvature along the arc length is defined. This 
+% provides controlling of the centripetal acceleration during cornering and 
+% has either G2 or G3 geometric continuity. 
 % 
-% The features that define the track are:
+% One option is for a generalised clothoid (also known as a Euler spiral or 
+%   Cornu spiral). The curvature of a clothoid is a polynomial (usually linear)
+%   function of its arc length. This is a G2 continuous curve. 
+% 
+% The second option is for a half-sine wave curvature profile where the 
+%   curvature increases from zero to the bend curvature following a sinusoidal
+%   path. This is a G3 continuous curve. 
+% 
+% The measurable features that define the track are:
 %   L_L     The lap length. This is generally a known, fixed value. 
 %   Y       The half-width between the two straights.
 %   R       The turn radius at the bend apex.
-%   n       The power of the change in curvature with length. Usually 1 (linear)
+%   If a clothoid is chosen
+%       n   The power of the change in curvature with length. Usually 1 (linear)
+% 
 % The ratio of inputs Y/R has a limited range of feasible solutions dependent on
-% L_L, R, & n that are checked before calculations begin. 
+% L_L, R, and the curvature function that are checked before calculations begin. 
+% 
+% This function requires Matlab r2019b or later. 
 % 
 % Track = VelodromeModel(Y, R, n, L_L, Resolution, FileName)
 % 
 % Example usage:
-%   Track = VelodromeModel(22, 21, 1, 250, 0.25, 'TrackData.csv');
+%   Track = VelodromeModel(23, 22, 1, 250, 0.25, 'TrackData.csv');
+%   Track = VelodromeModel(23, 22, 'sine', 250, 0.25, 'TrackData.csv');
 %   figure; plot(Track.X, Track.Y); axis equal
 %   figure; plot(Track.Lap, Track.Curvature); 
 % 
 % Inputs
-%   Y           (1 x 1 double) [m]      Half-width between the two straights.
-%                   Limit: Y < L_L/(2*pi).
-%   R           (1 x 1 double) [m]      Radius of the circular bend arc.
-%                   Limit: R < Y.
-%   n           (1 x 1 double) [-]      Curvature exponent. 
-%                   Limit: n > 0.           Default 1.
-%   L_L         (1 x 1 double) [m]      Lap length. 
-%                                           Default 250.
-%   Resolution  (1 x 1 double) [m]      Resolution of output data points. 
+%   Y           (1 x 1 double)  [m] Half-width between the two straights.
+%   R           (1 x 1 double)  [m] Radius of the circular bend arc. R < Y.
+%   n       Two different options:
+%               (1 x 1 double)  [-] Curvature exponent. n > 0. Default 1.
+%                       OR
+%               (1 x n char)    'sine' Use the sinusoidal curvature profile. 
+%   L_L         (1 x 1 double)  [m] Lap length. Default 250.
+%   Resolution  (1 x 1 double)  [m] Resolution of output data points. 
 %                   Default 1. (Every 1 m along the datum line). 
-%   FileName    (1 x m char)            Filename/path to save the output data.
+%   FileName    (1 x m char)    Filename/path to save the output data.
 %                   If FileName is not entered then the data will not be saved.
 %                   File type based on extension: .txt, .dat, .csv, .xls, .xlsx
 % 
@@ -44,88 +55,135 @@ function Track = VelodromeModel(Y, R, n, L_L, Resolution, FileName)
 %                   Lap         [m]     Lap distance from the pursuit line
 %                   X           [m]     x-coordinate
 %                   Y           [m]     y-coordinate
-%                   Curvature   [m^-1]  Track curvature
-%                   Radius      [m]     Track radius
-%                   dkOnds      [m^-2]  Track curvature derivative w.r.t. Lap
+%                   Curvature   [m^-1]  Curvature
+%                   Radius      [m]     Radius of curvature
+%                   dkOnds      [m^-2]  Cerivative of curvature w.r.t. Lap
 %                   Tangent     [rad]   Tangential angle
 %               Also has two structures 'Info' and 'Edge' in the table
-%               custom properties that records calculation details. 
-% 
-% Shaun Fitzgerald 
-% Created 2020-10-25 
+%               custom properties that record calculation details. 
 
 %% Inputs 
 arguments
-    Y           (1,1) double
-    R           (1,1) double
-    n           (1,1) double = 1
-    L_L         (1,1) double = 250
-    Resolution  (1,1) double = 1
-    FileName    (:,:) {string, char} = ''
+    Y           (1,1) {double, mustBePositive}
+    R           (1,1) {double, mustBePositive}
+    n           (1,:) {double, char, string} = 1
+    L_L         (1,1) {double, mustBePositive} = 250
+    Resolution  (1,1) {double, mustBePositive} = 1
+    FileName    (:,:) {char, string} = ''
 end
 
-nDataP = 1000; % [#] Number of data points for internal calculations
+nDataP = 2000; % [#] Number of data points for internal calculations
 
 % Basic bounds
 assert(Y < L_L/(2*pi), 'The half-width Y must be < L_L/(2*pi).')
-assert(R < Y, 'The radius R must be < Y')
-assert(n > 0, 'The exponent n must be > 0')
-assert(Resolution < L_L/25, 'The resolution must be much less than the lap')
+assert(R < Y, 'The radius R must be < Y.')
+assert(Resolution < L_L/25, 'The resolution must be << L_Lap.')
 
-% Primary bounds for Y/R
-if R <= L_L/(2*pi*(n+1))    
-    A_Max = (pi/2*(n+1))^(1/(n+1));                     % From psi < pi/2
-else                        
-    A_Max = ((L_L - 2*pi*R)/(4*n*R)*(n+1))^(1/(n+1));   % From L_S > 0
+%% Transition curve calculations 
+if isnumeric(n) 
+    %% Curvature profile: Power equation 
+    assert(isscalar(n) && n > 0, 'The exponent n must be scalar and > 0.')
+    
+    % Functions
+    K  = @(v, L_T) v.^n/(R*L_T^n);              % Curvarture   
+    Kd = @(v, L_T) n*v.^(n-1)/(R*L_T^n);        % Derivative 
+    Ki = @(u, L_T) u.^(n+1)/(R*L_T^n*(n+1));    % Integral
+    IC = @(t, L_T) integral(@(u) cos(u.^(n+1)/(R*L_T^n*(n+1))), 0, t);
+    IS = @(t, L_T) integral(@(u) sin(u.^(n+1)/(R*L_T^n*(n+1))), 0, t);
+    
+    % Primary bounds for Y/R
+    if R <= L_L/(2*pi*(n+1))
+        A_Max = pi*R/2*(n+1);                   % From psi < pi/2
+    else
+        A_Max = (L_L - 2*pi*R)*(n+1)/(4*n);     % From L_S > 0
+    end
+    YonR_Max = K(A_Max, A_Max)*IS(A_Max, A_Max) + cos(Ki(A_Max, A_Max));
+    assert(1 < Y/R && Y/R < YonR_Max, sprintf(...
+        'Y/R (%.3f) must be in: 1 < Y/R < %.3f for R = %.3f & n = %g',...
+        Y/R, YonR_Max, R, n))
+    
+    % Solving for A with the Newton–Raphson method.
+    % The initial value is found with the first-degree Maclaurin polynomial
+    A0 = sqrt(R*(Y - R)*(n+2)*(n+1));
+    Er = 1;
+    cc = 0;
+    while abs(Er) > 1e-13
+        % A1 = A0 - (IS(A0, A0) + R*cos(A0/R/(n+1)) - Y)/(sin(A0/R/(n+1))/(n+1));
+        A1 = A0*(1-1/n) - (R*cos(A0/R/(n+1)) - Y)/(n/A0*IS(A0, A0));
+        Er = A1 - A0;
+        A0 = A1;
+        cc = cc + 1;
+        if cc > 2000, error('Calculation of A not converged'); end
+    end
+    A = A1;
+    
+    Style = sprintf('Power curvature, n: %g', n);
+    
+else
+    %% Curvature profile: Sinusoidal 
+    
+    % Functions
+    K  = @(v, L_T) (sin(pi/L_T*v - pi/2) + 1)/2/R;          % Curvarture 
+    Kd = @(v, L_T)  cos(pi/L_T*v - pi/2)*pi/(2*R*L_T);      % Derivative 
+    Ki = @(u, L_T) (-L_T/pi*cos(pi/L_T*u - pi/2) + u)/2/R;  % Integral
+    IC = @(t, L_T) integral(@(u) cos((-L_T/pi*cos(pi/L_T*u - pi/2) + u)/2/R), 0, t);
+    IS = @(t, L_T) integral(@(u) sin((-L_T/pi*cos(pi/L_T*u - pi/2) + u)/2/R), 0, t);
+    
+    % Primary bounds for Y/R
+    if R <= L_L/(4*pi)
+        A_Max = pi*R;                               % From psi < pi/2
+    else
+        A_Max = (L_L - 2*pi*R)/2;                   % From L_S > 0
+    end
+    YonR_Max = K(A_Max, A_Max)*IS(A_Max, A_Max) + cos(Ki(A_Max, A_Max));
+    assert(1 < Y/R && Y/R < YonR_Max, sprintf(...
+        'Y/R (%.3f) must be in: 1 < Y/R < %.3f for R = %.3f',...
+        Y/R, YonR_Max, R))
+    
+    % Solving for A with the Newton–Raphson method.
+    % The initial value is found with the first-degree Maclaurin polynomial
+    A0 = sqrt(4*pi*R*(Y - R)/(pi - 2));
+    Er = 1;
+    cc = 0;
+    while abs(Er) > 1e-13
+        A1 = A0 - (IS(A0, A0) + R*cos(A0/2/R) - Y)/(sin(A0/2/R)/2);
+        Er = A1 - A0;
+        A0 = A1;
+        cc = cc + 1;
+        if cc > 2000, error('Calculation of A not converged'); end
+    end
+    A = A1; 
+    
+    Style = 'Sinusoidal curvature';
+    
 end
-YonR_Max = A_Max^n*IS(A_Max, n) + cos(A_Max^(n+1)/(n+1));
-assert(1 < Y/R && Y/R < YonR_Max, sprintf(...
-    'Y/R (%.3f) must be in the range: 1 < Y/R < %.3f for n = %g & R = %.3f',...
-    Y/R, YonR_Max, n, R))
-
-%% Clothoid calculations 
-% Solving for A with the Newton–Raphson method.
-% The starting value is found by solving the first-degree Maclaurin polynomial
-A0 = ((Y/R-1)*(n+2)*(n+1))^(1/2/(n+1)); 
-Er = 1;
-cc = 0;
-while abs(Er) > 1e-13
-    A1 = A0*(1-1/n) - (R*cos(A0^(n+1)/(n+1)) - Y)/(n*R*A0^(n-1)*IS(A0, n));
-    Er = A1 - A0;
-    A0 = A1;
-    cc = cc + 1;
-    if cc > 1000, error('Calculation of A not converged'); end
-end
-A = A1;
+L_T = A;
 
 % Single-value results  
-a   = R*A^n;                                    % [m]   Scale factor
-X   = R*A^n*IC(A, n) - R*sin(A^(n+1)/(n+1));    % [m]   Bend centre X-coord
-psi_1 = A^(n+1)/(n+1);                          % [rad] Bend start tangent angle
-theta = pi/2 - psi_1;                           % [rad] Bend open angle
-L_T = R*A^(n+1);                                % [m]   Transition length
-L_B = theta*R;                                  % [m]   Bend length 
-L_S = L_L/4 - L_T - L_B;                        % [m]   Straight length 
+X       = IC(A, L_T) - R*sin(Ki(A, L_T));   % [m]   Bend centre X-coord
+psi_1   = Ki(A, L_T);                       % [rad] Bend start tangent angle
+theta   = pi/2 - psi_1;                     % [rad] Bend open angle
+L_B     = theta*R;                          % [m]   Bend length
+L_S     = L_L/4 - L_T - L_B;                % [m]   Straight length
 
 % Per parametric distance t
-t = linspace(0, A, nDataP)';                    % [-]   Eqn parameter
-% This can be optionally replaced with a parfor loop for a speed improvement.
+t = linspace(0, A, nDataP)';                % [-]   Eqn parameter
 for ii = 1:nDataP
-    x(ii,1) = a*IC(t(ii), n);                   % [m]   x coordinate
-    y(ii,1) = a*IS(t(ii), n);                   % [m]   y coordinate
+    x(ii,1) = IC(t(ii), L_T);               % [m]   x coordinate
+    y(ii,1) = IS(t(ii), L_T);               % [m]   y coordinate
 end
-s       = R*A^n*t;                              % [m]    Arc length
-kappa   = t.^n/R/A^n;                           % [m^-1] Curvature
-dkOnds  = n*t.^(n-1)/R^2/A^(2*n);               % [m^-2] Curvature derivative
-psi     = t.^(n+1)/(n+1);                       % [rad]  Tangential angle
+s       = t;                                % [m]   Arc length
+psi     = Ki(t, L_T);                       % [rad] Tangential angle
+kappa   = K( t, L_T);                       % [m^-1] Curvature
+dkOnds  = Kd(t, L_T);                       % [m^-2] Curvature derivative
 
+%% The (x, y) coordinates for each track segment
 % Moving the origin to the centre of the velodrome
 xT  = x + L_S;
 yT  = y - Y;
 xBc = X + L_S;
 yBc = 0;
 
-%% The (x, y) coordinates for each track segment
 % Edge points of the straights 
 Edge.Str_Edge(1,:) = [ L_S, -Y];
 Edge.Str_Edge(2,:) = [ L_S,  Y]; 
@@ -133,14 +191,14 @@ Edge.Str_Edge(3,:) = [-L_S,  Y];
 Edge.Str_Edge(4,:) = [-L_S, -Y]; 
 
 % Edge points of the circular bend arcs
-Edge.Cba_Edge(1,:) = [ xBc + R*cos(theta), yBc - R*sin(theta)];
-Edge.Cba_Edge(2,:) = [ xBc + R*cos(theta), yBc + R*sin(theta)];
-Edge.Cba_Edge(3,:) = [-xBc - R*cos(theta), yBc + R*sin(theta)];
-Edge.Cba_Edge(4,:) = [-xBc - R*cos(theta), yBc - R*sin(theta)];
+Edge.Bnd_Edge(1,:) = [ xBc + R*cos(theta), yBc - R*sin(theta)];
+Edge.Bnd_Edge(2,:) = [ xBc + R*cos(theta), yBc + R*sin(theta)];
+Edge.Bnd_Edge(3,:) = [-xBc - R*cos(theta), yBc + R*sin(theta)];
+Edge.Bnd_Edge(4,:) = [-xBc - R*cos(theta), yBc - R*sin(theta)];
 
 % Centre of the circular bend arc
-Edge.Cba_Centre(1,:) = [ xBc, yBc];
-Edge.Cba_Centre(2,:) = [-xBc, yBc];
+Edge.Bnd_Centre(1,:) = [ xBc, yBc];
+Edge.Bnd_Centre(2,:) = [-xBc, yBc];
 
 % Transition curves
 XY.Trn1 = [ xT,  yT];
@@ -155,8 +213,8 @@ XY.Str3 = [linspace(-L_S,    0, nDataP)', -Y*ones(nDataP, 1)];
 
 % Circular bends 
 th = linspace(-theta, theta, nDataP)';         % [rad] Arc angle
-XY.Cba1 = [ xBc + R*cos(th),        yBc + R*sin(th)];
-XY.Cba2 = [-xBc + R*cos(th + pi),   yBc + R*sin(th + pi)];
+XY.Bnd1 = [ xBc + R*cos(th),        yBc + R*sin(th)];
+XY.Bnd2 = [-xBc + R*cos(th + pi),   yBc + R*sin(th + pi)];
 
 %% Lap distance and subsequent parameters
 %%%%% Lap distance 
@@ -171,8 +229,8 @@ Lap.Str2 = 1*L_S + 2*L_T + 2*L_B + 2*dsS;
 Lap.Str3 = 3*L_S + 4*L_T + 4*L_B + 1*dsS;
 
 dsC = R*linspace(0, 2*theta, nDataP)';
-Lap.Cba1 = 1*L_S + 1*L_T + dsC;
-Lap.Cba2 = 3*L_S + 3*L_T + 2*L_B + dsC;
+Lap.Bnd1 = 1*L_S + 1*L_T + dsC;
+Lap.Bnd2 = 3*L_S + 3*L_T + 2*L_B + dsC;
 
 %%%%% Curvature 
 Curv.Trn1 = kappa;
@@ -184,8 +242,8 @@ Curv.Str1 = zeros(nDataP, 1);
 Curv.Str2 = zeros(nDataP, 1);
 Curv.Str3 = zeros(nDataP, 1);
 
-Curv.Cba1 = ones(nDataP, 1)/R;
-Curv.Cba2 = ones(nDataP, 1)/R;
+Curv.Bnd1 = ones(nDataP, 1)/R;
+Curv.Bnd2 = ones(nDataP, 1)/R;
 
 %%%%% Curvature derivative
 CurvOnDs.Trn1 =  dkOnds;
@@ -197,8 +255,8 @@ CurvOnDs.Str1 = zeros(nDataP,1);
 CurvOnDs.Str2 = zeros(nDataP,1);
 CurvOnDs.Str3 = zeros(nDataP,1);
 
-CurvOnDs.Cba1 = zeros(nDataP,1);
-CurvOnDs.Cba2 = zeros(nDataP,1);
+CurvOnDs.Bnd1 = zeros(nDataP,1);
+CurvOnDs.Bnd2 = zeros(nDataP,1);
 
 %%%%% Tangential angle 
 Tangent.Trn1 = psi;
@@ -210,90 +268,91 @@ Tangent.Str1 = zeros(nDataP,1);
 Tangent.Str2 = zeros(nDataP,1) +   pi;
 Tangent.Str3 = zeros(nDataP,1) + 2*pi;
 
-Tangent.Cba1 = th + 1/2*pi;
-Tangent.Cba2 = th + 3/2*pi;
+Tangent.Bnd1 = th + 1/2*pi;
+Tangent.Bnd2 = th + 3/2*pi;
 
 %% Combining the data into one (unequally spaced) lap distance 
-Comb.Lap = [...
-    Lap.Str1(1:end-1); ...
-    Lap.Trn1(1:end-1); ...
-    Lap.Cba1(1:end-1); ...
-    Lap.Trn2(1:end-1); ...
-    Lap.Str2(1:end-1); ...
-    Lap.Trn3(1:end-1); ...
-    Lap.Cba2(1:end-1); ...
-    Lap.Trn4(1:end-1); ...
-    Lap.Str3(1:end-1)];
-
-Comb.Curvature = [...
-    Curv.Str1(1:end-1); ...
-    Curv.Trn1(1:end-1); ...
-    Curv.Cba1(1:end-1); ...
-    Curv.Trn2(1:end-1); ...
-    Curv.Str2(1:end-1); ...
-    Curv.Trn3(1:end-1); ...
-    Curv.Cba2(1:end-1); ...
-    Curv.Trn4(1:end-1); ...
-    Curv.Str3(1:end-1)];
-
 Comb.X = [...
     XY.Str1(1:end-1,1); ...
     XY.Trn1(1:end-1,1); ...
-    XY.Cba1(1:end-1,1); ...
+    XY.Bnd1(1:end-1,1); ...
     XY.Trn2(1:end-1,1); ...
     XY.Str2(1:end-1,1); ...
     XY.Trn3(1:end-1,1); ...
-    XY.Cba2(1:end-1,1); ...
+    XY.Bnd2(1:end-1,1); ...
     XY.Trn4(1:end-1,1); ...
     XY.Str3(1:end-1,1)];
 
 Comb.Y = [...
     XY.Str1(1:end-1,2); ...
     XY.Trn1(1:end-1,2); ...
-    XY.Cba1(1:end-1,2); ...
+    XY.Bnd1(1:end-1,2); ...
     XY.Trn2(1:end-1,2); ...
     XY.Str2(1:end-1,2); ...
     XY.Trn3(1:end-1,2); ...
-    XY.Cba2(1:end-1,2); ...
+    XY.Bnd2(1:end-1,2); ...
     XY.Trn4(1:end-1,2); ...
     XY.Str3(1:end-1,2)];
+
+Comb.Lap = [...
+    Lap.Str1(1:end-1); ...
+    Lap.Trn1(1:end-1); ...
+    Lap.Bnd1(1:end-1); ...
+    Lap.Trn2(1:end-1); ...
+    Lap.Str2(1:end-1); ...
+    Lap.Trn3(1:end-1); ...
+    Lap.Bnd2(1:end-1); ...
+    Lap.Trn4(1:end-1); ...
+    Lap.Str3(1:end-1)];
+
+Comb.Curvature = [...
+    Curv.Str1(1:end-1); ...
+    Curv.Trn1(1:end-1); ...
+    Curv.Bnd1(1:end-1); ...
+    Curv.Trn2(1:end-1); ...
+    Curv.Str2(1:end-1); ...
+    Curv.Trn3(1:end-1); ...
+    Curv.Bnd2(1:end-1); ...
+    Curv.Trn4(1:end-1); ...
+    Curv.Str3(1:end-1)];
 
 Comb.dkOnds = [...
     CurvOnDs.Str1(1:end-1); ...
     CurvOnDs.Trn1(1:end-1); ...
-    CurvOnDs.Cba1(1:end-1); ...
+    CurvOnDs.Bnd1(1:end-1); ...
     CurvOnDs.Trn2(1:end-1); ...
     CurvOnDs.Str2(1:end-1); ...
     CurvOnDs.Trn3(1:end-1); ...
-    CurvOnDs.Cba2(1:end-1); ...
+    CurvOnDs.Bnd2(1:end-1); ...
     CurvOnDs.Trn4(1:end-1); ...
     CurvOnDs.Str3(1:end-1)];
 
 Comb.Tangent = [...
     Tangent.Str1(1:end-1); ...
     Tangent.Trn1(1:end-1); ...
-    Tangent.Cba1(1:end-1); ...
+    Tangent.Bnd1(1:end-1); ...
     Tangent.Trn2(1:end-1); ...
     Tangent.Str2(1:end-1); ...
     Tangent.Trn3(1:end-1); ...
-    Tangent.Cba2(1:end-1); ...
+    Tangent.Bnd2(1:end-1); ...
     Tangent.Trn4(1:end-1); ...
     Tangent.Str3(1:end-1)];
 
 %% Saving the primary information
+Info.Style      = Style;
 Info.n          = n;
 Info.Y          = Y;
 Info.X          = X;
-Info.a          = a;
 Info.A          = A;
-Info.R_cba      = R;
+Info.R_Bnd      = R;
 Info.L_Lap      = L_L;
 Info.L_Str      = L_S;
 Info.L_Trn      = L_T;
-Info.L_cba      = L_B;
+Info.L_Bnd      = L_B;
 Info.theta      = theta;
 Info.psi_1      = psi_1;
 Info.BendCentre = [xBc, yBc];
+Info.Trns       = cumsum([0, L_S, L_T, 2*L_B, L_T, 2*L_S, L_T, 2*L_B, L_T, L_S]);
 Info.Resolution = Resolution;
 
 %% Creating a consistently spaced table with the data
@@ -324,9 +383,3 @@ Track.Properties.CustomProperties.Edge = Edge;
 if ~isempty(FileName)
     writetable(Track, FileName);
 end
-
-end
-
-% Clothoid integrals. These could be anonymous functions, but this is ~4% faster
-function Int = IC(t, n), Int = integral(@(u) cos(u.^(n+1)/(n+1)), 0, t); end
-function Int = IS(t, n), Int = integral(@(u) sin(u.^(n+1)/(n+1)), 0, t); end

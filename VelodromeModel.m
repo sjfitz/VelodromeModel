@@ -118,6 +118,7 @@ if isnumeric(n)
     A = A1;
     
     Style = sprintf('Power curvature, n: %g', n);
+    Continuity = 'G2';
     
 else
     %% Curvature profile: Sinusoidal 
@@ -155,6 +156,7 @@ else
     A = A1; 
     
     Style = 'Sinusoidal curvature';
+    Continuity = 'G3';
     
 end
 L_T = A;
@@ -354,6 +356,7 @@ Info.psi_1      = psi_1;
 Info.BendCentre = [xBc, yBc];
 Info.Trns       = cumsum([0, L_S, L_T, 2*L_B, L_T, 2*L_S, L_T, 2*L_B, L_T, L_S]);
 Info.Resolution = Resolution;
+Info.Continuity = Continuity;
 
 %% Creating a consistently spaced table with the data
 Track = table;

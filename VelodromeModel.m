@@ -57,7 +57,7 @@ function Track = VelodromeModel(Y, R, n, L_L, Resolution, FileName)
 %                   Y           [m]     y-coordinate
 %                   Curvature   [m^-1]  Curvature
 %                   Radius      [m]     Radius of curvature
-%                   dkOnds      [m^-2]  Cerivative of curvature w.r.t. Lap
+%                   dk_ds       [m^-2]  Cerivative of curvature w.r.t. Lap
 %                   Tangent     [rad]   Tangential angle
 %               Also has two structures 'Info' and 'Edge' in the table
 %               custom properties that record calculation details. 
@@ -177,7 +177,7 @@ end
 s       = t;                                % [m]   Arc length
 psi     = Ki(t, L_T);                       % [rad] Tangential angle
 kappa   = K( t, L_T);                       % [m^-1] Curvature
-dkOnds  = Kd(t, L_T);                       % [m^-2] Curvature derivative
+dk_ds   = Kd(t, L_T);                       % [m^-2] Curvature derivative
 
 %% The (x, y) coordinates for each track segment
 % Moving the origin to the centre of the velodrome
@@ -248,10 +248,10 @@ Curv.Bnd1 = ones(nDataP, 1)/R;
 Curv.Bnd2 = ones(nDataP, 1)/R;
 
 %%%%% Curvature derivative
-CurvOnDs.Trn1 =  dkOnds;
-CurvOnDs.Trn2 = -flipud(dkOnds);
-CurvOnDs.Trn3 =  dkOnds;
-CurvOnDs.Trn4 = -flipud(dkOnds);
+CurvOnDs.Trn1 =  dk_ds;
+CurvOnDs.Trn2 = -flipud(dk_ds);
+CurvOnDs.Trn3 =  dk_ds;
+CurvOnDs.Trn4 = -flipud(dk_ds);
 
 CurvOnDs.Str1 = zeros(nDataP,1);
 CurvOnDs.Str2 = zeros(nDataP,1);
@@ -318,7 +318,7 @@ Comb.Curvature = [...
     Curv.Trn4(1:end-1); ...
     Curv.Str3(1:end-1)];
 
-Comb.dkOnds = [...
+Comb.dk_ds = [...
     CurvOnDs.Str1(1:end-1); ...
     CurvOnDs.Trn1(1:end-1); ...
     CurvOnDs.Bnd1(1:end-1); ...
@@ -365,7 +365,7 @@ Track.X         = interp1(Comb.Lap, Comb.X,         Track.Lap, 'makima');
 Track.Y         = interp1(Comb.Lap, Comb.Y,         Track.Lap, 'makima');
 Track.Curvature = interp1(Comb.Lap, Comb.Curvature, Track.Lap, 'makima');
 Track.Radius    = 1./Track.Curvature;
-Track.dkOnds    = interp1(Comb.Lap, Comb.dkOnds,    Track.Lap, 'makima');
+Track.dk_ds     = interp1(Comb.Lap, Comb.dk_ds,     Track.Lap, 'makima');
 Track.Tangent   = interp1(Comb.Lap, Comb.Tangent,   Track.Lap, 'makima');
 
 % Adjusting the tangential angle range to (-pi, +pi)

@@ -6,9 +6,12 @@ function Track = VelodromeModel(Y, R, n, L_L, Resolution, FileName)
 % provides controlling of the centripetal acceleration during cornering and 
 % has either G2 or G3 geometric continuity. 
 % 
-% One option is for a generalised clothoid (also known as a Euler spiral or 
-%   Cornu spiral). The curvature of a clothoid is a polynomial (usually linear)
-%   function of its arc length. This is a G2 continuous curve. 
+% The first option is for a generalised clothoid (also known as a Euler spiral 
+%   or Cornu spiral). Here the curvature of the transition curve is a 
+%   polynomial function of its arc length and the exponent power, n, is 
+%   required to be selected. A typical case is for n = 1 which is the standard 
+%   Euler spiral transition curve where the curvature increases linearly along 
+%   the arc length. This is a G2 continuous curve.
 % 
 % The second option is for a half-sine wave curvature profile where the 
 %   curvature increases from zero to the bend curvature following a sinusoidal

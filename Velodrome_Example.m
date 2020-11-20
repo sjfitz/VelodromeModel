@@ -44,12 +44,13 @@ scatter(Edge.Bnd_Centre(:,1), Edge.Bnd_Centre(:,2), 'ok')
 scatter(Edge.Str_Edge(:,1),   Edge.Str_Edge(:,2),   'sk')
 scatter(Edge.Bnd_Edge(:,1),   Edge.Bnd_Edge(:,2),   'sk')
 axis equal
-axis tight
 xlabel('X [m]')
 ylabel('Y [m]')
 title('Plan view')
+axis tight
 set(gca, 'XLim',get(gca, 'XLim')*1.05)
 set(gca, 'YLim',get(gca, 'YLim')*1.10)
+% axis padded
 
 %%%%%%%%%% Curvature
 subplot(3,2,3)
@@ -83,3 +84,5 @@ xlabel('Lap Position [m]')
 ylabel('\psi [rad]')
 title('Tangential angle')
 xlim([0, L])
+yticks((-1:0.5:1)*pi)
+yticklabels({'-\pi', '-\pi/2', '0', '\pi/2', '\pi'})

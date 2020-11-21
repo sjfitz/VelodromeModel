@@ -12,3 +12,10 @@ The measurable features that define the track are:
    * _R_: The turn radius at the bend apex.
    
 The ratio of inputs _Y/R_ has a limited range of feasible solutions dependent on _L<sub>L</sub>_, _R_, and the curvature function that are checked before calculations begin. 
+
+A plan view of the velodrome model definitions 
+![Track definition](Images/Fig1_VelodromeDiagram.png)
+
+The file `Velodome_Example.m` is provided to show the basic usage of this function. Shown below is the result with _L<sub>L</sub>_ = 250 m, _Y_ = 23 m, _R_ 22 m, and _n_ = 1. 
+
+![Typical Results](Images/TypicalResults.png)

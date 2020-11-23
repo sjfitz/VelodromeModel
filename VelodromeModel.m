@@ -29,13 +29,11 @@ function Track = VelodromeModel(Y, R, n, L_L, Resolution, FileName)
 % 
 % This function requires Matlab r2019b or later. 
 % 
-% Track = VelodromeModel(Y, R, n, L_L, Resolution, FileName)
-% 
-% Example usage:
-%   Track = VelodromeModel(23, 22, 1, 250, 0.25, 'TrackData.csv');
-%   Track = VelodromeModel(23, 22, 'sine', 250, 0.25, 'TrackData.csv');
-%   figure; plot(Track.X, Track.Y); axis equal
-%   figure; plot(Track.Lap, Track.Curvature); 
+% Syntax
+%   Track = VelodromeModel(Y, R)
+%   Track = VelodromeModel(Y, R, 1)
+%   Track = VelodromeModel(Y, R, 'sine')
+%   Track = VelodromeModel(Y, R, n, L_L, Resolution, FileName)
 % 
 % Inputs
 %   Y           (1 x 1 double)  [m] Half-width between the two straights.
@@ -64,6 +62,12 @@ function Track = VelodromeModel(Y, R, n, L_L, Resolution, FileName)
 %                   Tangent     [rad]   Tangential angle
 %               Also has two structures 'Info' and 'Edge' in the table
 %               custom properties that record calculation details. 
+% 
+% Example usage:
+%   Track = VelodromeModel(23, 22, 1, 250, 0.25, 'TrackData.csv');
+%   Track = VelodromeModel(23, 22, 'sine', 250, 0.25, 'TrackData.csv');
+%   figure; plot(Track.X, Track.Y); axis equal
+%   figure; plot(Track.Lap, Track.Curvature); 
 
 %% Inputs 
 arguments

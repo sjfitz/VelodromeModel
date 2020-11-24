@@ -16,6 +16,6 @@ The ratio of inputs _Y/R_ has a limited range of feasible solutions dependent on
 A plan view of the velodrome model definitions 
 ![Track definition](Images/Fig1_VelodromeDiagram.png)
 
-The file `Velodome_Example.m` is provided to show the basic usage of this function. Shown below is the result with _L<sub>L</sub>_ = 250 m, _Y_ = 23 m, _R_ 22 m, and _n_ = 1. 
+The file `Velodome_Example.m` is provided to show the basic usage of this function. Shown below is the result with _L<sub>L</sub>_&nbsp;=&nbsp;250&nbsp;m, _Y_&nbsp;=&nbsp;23&nbsp;m, _R_&nbsp;=&nbsp;22&nbsp;m, and _n_&nbsp;=&nbsp;1. 
 
 ![Typical Results](Images/TypicalResults.png)

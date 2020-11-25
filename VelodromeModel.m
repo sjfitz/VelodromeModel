@@ -73,7 +73,7 @@ function Track = VelodromeModel(Y, R, n, L_L, Resolution, FileName)
 arguments
     Y           (1,1) {double, mustBePositive}
     R           (1,1) {double, mustBePositive}
-    n           (1,:) {double, char, string} = 1
+    n           (1,:) {double, char} = 1
     L_L         (1,1) {double, mustBePositive} = 250
     Resolution  (1,1) {double, mustBePositive} = 1
     FileName    (:,:) {char, string} = ''
@@ -127,7 +127,7 @@ if isnumeric(n)
     Style = sprintf('Power curvature, n: %g', n);
     Continuity = 'G2';
     
-else
+elseif strcmpi(n(1), 's') || strcmpi(n, 'g3')
     %% Curvature profile: Sinusoidal 
     
     % Functions
@@ -164,6 +164,9 @@ else
     
     Style = 'Sinusoidal curvature';
     Continuity = 'G3';
+    
+else
+    error('Unknown model type: ''%s''.', n)
     
 end
 L_T = A;

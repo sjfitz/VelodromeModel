@@ -91,6 +91,9 @@ if isnumeric(n)
     %% Curvature profile: Power equation 
     assert(isscalar(n) && n > 0, 'The exponent n must be scalar and > 0.')
     
+    Style = sprintf('Power curvature, n: %g', n);
+    Continuity = 'G2';
+    
     % Functions
     K  = @(v, L_T) v.^n/(R*L_T^n);              % Curvarture   
     Kd = @(v, L_T) n*v.^(n-1)/(R*L_T^n);        % Derivative 
@@ -98,37 +101,13 @@ if isnumeric(n)
     IC = @(t, L_T) integral(@(u) cos(u.^(n+1)/(R*L_T^n*(n+1))), 0, t);
     IS = @(t, L_T) integral(@(u) sin(u.^(n+1)/(R*L_T^n*(n+1))), 0, t);
     
-    % Primary bounds for Y/R
-    if R <= L_L/(2*pi*(n+1))
-        A_Max = pi*R/2*(n+1);                   % From psi < pi/2
-    else
-        A_Max = (L_L - 2*pi*R)*(n+1)/(4*n);     % From L_S > 0
-    end
-    YonR_Max = K(A_Max, A_Max)*IS(A_Max, A_Max) + cos(Ki(A_Max, A_Max));
-    assert(1 < Y/R && Y/R < YonR_Max, sprintf(...
-        'Y/R (%.3f) must be in: 1 < Y/R < %.3f for R = %.3f & n = %g',...
-        Y/R, YonR_Max, R, n))
-    
-    % Solving for A with the Newton–Raphson method.
     % The initial value is found with the first-degree Maclaurin polynomial
-    A0 = sqrt(R*(Y - R)*(n+2)*(n+1));
-    Er = 1;
-    cc = 0;
-    while abs(Er) > 1e-13
-        % A1 = A0 - (IS(A0, A0) + R*cos(A0/R/(n+1)) - Y)/(sin(A0/R/(n+1))/(n+1));
-        A1 = A0*(1-1/n) - (R*cos(A0/R/(n+1)) - Y)/(n/A0*IS(A0, A0));
-        Er = A1 - A0;
-        A0 = A1;
-        cc = cc + 1;
-        if cc > 2000, error('Calculation of A not converged'); end
-    end
-    A = A1;
-    
-    Style = sprintf('Power curvature, n: %g', n);
-    Continuity = 'G2';
+    A0 = sqrt((n+2)*(n+1)*R*(Y - R));
     
 elseif strcmpi(n(1), 's') || strcmpi(n, 'g3')
     %% Curvature profile: Sinusoidal 
+    Style = 'Sinusoidal curvature';
+    Continuity = 'G3';
     
     % Functions
     K  = @(v, L_T) (sin(pi/L_T*v - pi/2) + 1)/2/R;          % Curvarture 
@@ -136,40 +115,39 @@ elseif strcmpi(n(1), 's') || strcmpi(n, 'g3')
     Ki = @(u, L_T) (-L_T/pi*cos(pi/L_T*u - pi/2) + u)/2/R;  % Integral
     IC = @(t, L_T) integral(@(u) cos((-L_T/pi*cos(pi/L_T*u - pi/2) + u)/2/R), 0, t);
     IS = @(t, L_T) integral(@(u) sin((-L_T/pi*cos(pi/L_T*u - pi/2) + u)/2/R), 0, t);
+    n  = 1;
     
-    % Primary bounds for Y/R
-    if R <= L_L/(4*pi)
-        A_Max = pi*R;                               % From psi < pi/2
-    else
-        A_Max = (L_L - 2*pi*R)/2;                   % From L_S > 0
-    end
-    YonR_Max = K(A_Max, A_Max)*IS(A_Max, A_Max) + cos(Ki(A_Max, A_Max));
-    assert(1 < Y/R && Y/R < YonR_Max, sprintf(...
-        'Y/R (%.3f) must be in: 1 < Y/R < %.3f for R = %.3f',...
-        Y/R, YonR_Max, R))
-    
-    % Solving for A with the Newton–Raphson method.
     % The initial value is found with the first-degree Maclaurin polynomial
-    A0 = sqrt(4*pi*R*(Y - R)/(pi - 2));
-    Er = 1;
-    cc = 0;
-    while abs(Er) > 1e-13
-        A1 = A0 - (IS(A0, A0) + R*cos(A0/2/R) - Y)/(sin(A0/2/R)/2);
-        Er = A1 - A0;
-        A0 = A1;
-        cc = cc + 1;
-        if cc > 2000, error('Calculation of A not converged'); end
-    end
-    A = A1; 
-    
-    Style = 'Sinusoidal curvature';
-    Continuity = 'G3';
+    A0 = sqrt(4*pi/(pi - 2)*R*(Y - R));
     
 else
     error('Unknown model type: ''%s''.', n)
     
 end
-L_T = A;
+
+% Primary bounds for Y/R
+if R <= L_L/(2*pi*(n+1))
+    A_Max = pi*R/2*(n+1);                   % From psi < pi/2
+else
+    A_Max = (L_L - 2*pi*R)*(n+1)/(4*n);     % From L_S > 0
+end
+YonR_Max = K(A_Max, A_Max)*IS(A_Max, A_Max) + cos(Ki(A_Max, A_Max));
+assert(1 < Y/R && Y/R < YonR_Max, sprintf(...
+    'Y/R (%.3f) must be in: 1 < Y/R < %.3f for R = %.3f & n = %g',...
+    Y/R, YonR_Max, R, n))
+
+% Solving for A with the Newton–Raphson method.
+Er = 1;
+cc = 0;
+while abs(Er) > 1e-13
+    A1 = A0 - (IS(A0, A0) + R*cos(A0/R/(n+1)) - Y)/(sin(A0/R/(n+1))/(n+1));
+    Er = A1 - A0;
+    A0 = A1;
+    cc = cc + 1;
+    if cc > 2000, error('Calculation of A not converged'); end
+end
+A   = A1;
+L_T = A1;
 
 % Single-value results  
 X       = IC(A, L_T) - R*sin(Ki(A, L_T));   % [m]   Bend centre X-coord

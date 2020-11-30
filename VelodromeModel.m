@@ -91,7 +91,7 @@ if isnumeric(n)
     %% Curvature profile: Power equation 
     assert(isscalar(n) && n > 0, 'The exponent n must be scalar and > 0.')
     
-    Style = sprintf('Power curvature, n: %g', n);
+    Style = sprintf('Power, n: %g', n);
     Continuity = 'G2';
     
     % Functions
@@ -106,7 +106,7 @@ if isnumeric(n)
     
 elseif strcmpi(n(1), 's') || strcmpi(n, 'g3')
     %% Curvature profile: Sinusoidal 
-    Style = 'Sinusoidal curvature';
+    Style = 'Sinusoidal';
     Continuity = 'G3';
     
     % Functions

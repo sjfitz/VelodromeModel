@@ -58,7 +58,7 @@ function Track = VelodromeModel(Y, R, n, L_L, Resolution, FileName)
 %                   Y           [m]     y-coordinate
 %                   Curvature   [m^-1]  Curvature
 %                   Radius      [m]     Radius of curvature
-%                   dk_ds       [m^-2]  Cerivative of curvature w.r.t. Lap
+%                   dk_ds       [m^-2]  Derivative of curvature w.r.t. Lap
 %                   Tangent     [rad]   Tangential angle
 %               Also has two structures 'Info' and 'Edge' in the table
 %               custom properties that record calculation details. 
@@ -95,7 +95,7 @@ if isnumeric(n)
     Continuity = 'G2';
     
     % Functions
-    K  = @(v, L_T) v.^n/(R*L_T^n);              % Curvarture   
+    K  = @(v, L_T) v.^n/(R*L_T^n);              % Curvature   
     Kd = @(v, L_T) n*v.^(n-1)/(R*L_T^n);        % Derivative 
     Ki = @(u, L_T) u.^(n+1)/(R*L_T^n*(n+1));    % Integral
     IC = @(t, L_T) integral(@(u) cos(u.^(n+1)/(R*L_T^n*(n+1))), 0, t);
@@ -110,7 +110,7 @@ elseif strcmpi(n(1), 's') || strcmpi(n, 'g3')
     Continuity = 'G3';
     
     % Functions
-    K  = @(v, L_T) (sin(pi/L_T*v - pi/2) + 1)/2/R;          % Curvarture 
+    K  = @(v, L_T) (sin(pi/L_T*v - pi/2) + 1)/2/R;          % Curvature 
     Kd = @(v, L_T)  cos(pi/L_T*v - pi/2)*pi/(2*R*L_T);      % Derivative 
     Ki = @(u, L_T) (-L_T/pi*cos(pi/L_T*u - pi/2) + u)/2/R;  % Integral
     IC = @(t, L_T) integral(@(u) cos((-L_T/pi*cos(pi/L_T*u - pi/2) + u)/2/R), 0, t);
@@ -133,8 +133,8 @@ else
 end
 YonR_Max = K(A_Max, A_Max)*IS(A_Max, A_Max) + cos(Ki(A_Max, A_Max));
 assert(1 < Y/R && Y/R < YonR_Max, sprintf(...
-    'Y/R (%.3f) must be in: 1 < Y/R < %.3f for R = %.3f & n = %g',...
-    Y/R, YonR_Max, R, n))
+    'Y/R (%.3f) must be in: (1 < Y/R < %.4f) for ''%s'' curvature with R = %.4g.',...
+    Y/R, YonR_Max, Style, R))
 
 % Solving for A with the Newton–Raphson method.
 Er = 1;

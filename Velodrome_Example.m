@@ -5,18 +5,20 @@ clear
 clc
 
 % Inputs 
-Y = 23.0;       % [m] Track half-width
-R = 22.0;       % [m] Bend apex radius
-L = 250;        % [m] Lap length
-S = 0.1;        % [m] Resolution
+Y = 23.0;       % [m]   Track half-width
+R = 22.0;       % [m]   Bend apex radius
+L = 250;        % [m]   Lap length
+S = 0.1;        % [m]   Resolution
+Bank_min = 13;  % [deg] Minimum bank angle
+Bank_max = 43;  % [deg] Maximum bank angle
 
 % Power function
-n = 1;          % [#] Curvature power
+n = 1;          % [#]   Curvature power
 
 % Sinusoidal function
 % n = 'sine';
 
-Track = VelodromeModel(Y, R, n, L, S);
+Track = VelodromeModel2a(Y, R, n, L, [Bank_min, Bank_max], S);
 
 % To save the data 
 % Track = VelodromeModel(Y, R, n, L, S, 'TrackData.csv');
@@ -36,7 +38,7 @@ disp(head(Track))
 figure; 
 
 %%%%%%%%%% (x, y) coordinates
-subplot(3,2,[1,2])
+subplot(3,2,1)
 hold on
 box  on
 plot(Track.X, Track.Y)
@@ -51,6 +53,14 @@ axis tight
 set(gca, 'XLim',get(gca, 'XLim')*1.05)
 set(gca, 'YLim',get(gca, 'YLim')*1.10)
 % axis padded
+
+%%%%%%%%%% Bank Angle
+subplot(3,2,2)
+plot(Track.Lap, Track.BankAngle)
+xlabel('Lap Position [m]')
+ylabel('\beta [deg]')
+title('Bank Angle')
+xlim([0, L])
 
 %%%%%%%%%% Curvature
 subplot(3,2,3)
@@ -73,7 +83,7 @@ ylim([0, 100])
 subplot(3,2,5)
 plot(Track.Lap, Track.dk_ds)
 xlabel('Lap Position [m]')
-ylabel('d\kappa/ds [m^{-2}]')
+ylabel('\kappa'' [m^{-2}]')
 title('Derivative of curvature')
 xlim([0, L])
 

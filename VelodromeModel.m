@@ -1,4 +1,4 @@
-function Track = VelodromeModel(Y, R, n, L_L, Resolution, FileName)
+function Track = VelodromeModel(Y, R, n, L_L, Options)
 % VelodromeModel creates a velodrome track black-line model that consists of 
 % two straights, two circular arc bends and four transition curves between the 
 % bends and the straights. The transition curves are based on two different
@@ -18,9 +18,9 @@ function Track = VelodromeModel(Y, R, n, L_L, Resolution, FileName)
 %   path. This is a G3 continuous curve. 
 % 
 % The measurable features that define the track are:
-%   L_L     The lap length. This is generally a known, fixed value. 
-%   Y       The half-width between the two straights.
+%   Y       The half-span between the two straights.
 %   R       The turn radius at the bend apex.
+%   L_L     The lap length. This is generally a known, fixed value. 
 %   If a clothoid is chosen
 %       n   The power of the change in curvature with length. Usually 1 (linear)
 % 
@@ -33,39 +33,57 @@ function Track = VelodromeModel(Y, R, n, L_L, Resolution, FileName)
 %   Track = VelodromeModel(Y, R)
 %   Track = VelodromeModel(Y, R, 1)
 %   Track = VelodromeModel(Y, R, 'sine')
-%   Track = VelodromeModel(Y, R, n, L_L, Resolution, FileName)
+%   Track = VelodromeModel(Y, R, n, L_L)
+%   Track = VelodromeModel(..., 'Bank',[<value>, <value>])
+%   Track = VelodromeModel(..., 'Width',<value>)
+%   Track = VelodromeModel(..., 'Resolution',<value>)
+%   Track = VelodromeModel(..., 'FileName',<name>)
 % 
-% Inputs
-%   Y           (1 x 1 double)  [m] Half-width between the two straights.
+% Inputs (Ordered)
+%   Y           (1 x 1 double)  [m] Half-span between the two straights.
 %   R           (1 x 1 double)  [m] Radius of the circular bend arc. R < Y.
 %   n       Two different options:
 %               (1 x 1 double)  [-] Curvature exponent. n > 0. Default 1.
 %                       OR
 %               (1 x n char)    'sine' Use the sinusoidal curvature profile. 
 %   L_L         (1 x 1 double)  [m] Lap length. Default 250.
+% Inputs (Name-value pairs) (These are not required). 
+%   Bank        (1 x 2 double)  [deg/rad] Create a simple sinusoidal bank angle:
+%               The minimum and maximum values of the bank angle. This is a 
+%               resonable first approximation but a detailed survey is better. 
+%                   BankAngle = (Max - Min)/2*sin(2*t - pi/2) + (Max + Min)/2
+%   Width       (1 x 1 double)  [m] The track width. 
 %   Resolution  (1 x 1 double)  [m] Resolution of output data points. 
 %                   Default 1. (Every 1 m along the datum line). 
-%   FileName    (1 x m char)    Filename/path to save the output data.
-%                   If FileName is not entered then the data will not be saved.
+%   FileName    (1 x n char)    Path/filename/extension to save the output data.
 %                   File type based on extension: .txt, .dat, .csv, .xls, .xlsx
 % 
 % Output 
-%   Data     	(m x 7 table) A table of the data vs track distance.
+%   Track     	(m x 8+ table) A table of the data vs track distance.
 %                       m = L_L/Resolution + 1. 
 %               Variables:
 %                   Lap         [m]     Lap distance from the pursuit line
-%                   X           [m]     x-coordinate
-%                   Y           [m]     y-coordinate
+%                   X           [m]     x-coordinate of the datum line
+%                   Y           [m]     y-coordinate of the datum line
+%                   Z           [m]     z-coordinate of the datum line (0)
 %                   Curvature   [m^-1]  Curvature
 %                   Radius      [m]     Radius of curvature
 %                   dk_ds       [m^-2]  Derivative of curvature w.r.t. Lap
 %                   Tangent     [rad]   Tangential angle
-%               Also has two structures 'Info' and 'Edge' in the table
+%               If 'Bank' is included
+%                   BankAngle   [deg/rad] Banking angle
+%               If 'Bank' & 'Width' are included
+%                   X_Top       [m]     x-coordinate of the track top
+%                   Y_Top       [m]     y-coordinate of the track top
+%                   Z_Top       [m]     z-coordinate of the track top
+%               Track also has two structures 'Info' and 'Edge' in the table
 %               custom properties that record calculation details. 
 % 
 % Example usage:
-%   Track = VelodromeModel(23, 22, 1, 250, 0.25, 'TrackData.csv');
-%   Track = VelodromeModel(23, 22, 'sine', 250, 0.25, 'TrackData.csv');
+%   Track = VelodromeModel(23, 22);
+%   Track = VelodromeModel(23, 22, 'sine', 250, 'Bank',[13, 43], 'Width',7.5);
+%   Track = VelodromeModel(23, 22,    1,   250, 'Resolution',0.25);
+%   Track = VelodromeModel(23, 22,    1,   250, 'FileName','TrackData.csv');
 %   figure; plot(Track.X, Track.Y); axis equal
 %   figure; plot(Track.Lap, Track.Curvature); 
 
@@ -75,14 +93,27 @@ arguments
     R           (1,1) {double, mustBePositive}
     n           (1,:) {double, char} = 1
     L_L         (1,1) {double, mustBePositive} = 250
-    Resolution  (1,1) {double, mustBePositive} = 1
-    FileName    (:,:) {char, string} = ''
+    Options.Bank        (1,2) {double, mustBeNonnegative}
+    Options.Width       (1,1) {double, mustBePositive}
+    Options.Resolution  (1,1) {double, mustBePositive} = 1
+    Options.FileName    (:,:) {char, string}
 end
+if ismember('Bank', fieldnames(Options))
+    Bank = Options.Bank;
+else
+    Bank = nan;
+end
+if ismember('Width', fieldnames(Options))
+    Width = Options.Width;
+else
+    Width = nan;
+end
+Resolution = Options.Resolution;
 
 nDataP = 2000; % [#] Number of data points for internal calculations
 
 % Basic bounds
-assert(Y < L_L/(2*pi), 'The half-width Y must be < L_L/(2*pi).')
+assert(Y < L_L/(2*pi), 'The half-span Y must be < L_L/(2*pi).')
 assert(R < Y, 'The radius R must be < Y.')
 assert(Resolution < L_L/25, 'The resolution must be << L_Lap.')
 
@@ -343,21 +374,23 @@ Info.theta      = theta;
 Info.psi_1      = psi_1;
 Info.BendCentre = [xBc, yBc];
 Info.Trns       = cumsum([0, L_S, L_T, 2*L_B, L_T, 2*L_S, L_T, 2*L_B, L_T, L_S]);
-Info.Resolution = Resolution;
 Info.Continuity = Continuity;
+Info.Resolution = Resolution;
+Info.Bank       = Bank;
+Info.Width      = Width;
 
 %% Creating a consistently spaced table with the data
 Track = table;
 Track.Lap       = (0:Resolution:L_L)';
 Track.X         = interp1(Comb.Lap, Comb.X,         Track.Lap, 'makima');
 Track.Y         = interp1(Comb.Lap, Comb.Y,         Track.Lap, 'makima');
+Track.Z         = zeros(height(Track),1);
 Track.Curvature = interp1(Comb.Lap, Comb.Curvature, Track.Lap, 'makima');
 Track.Radius    = 1./Track.Curvature;
 Track.dk_ds     = interp1(Comb.Lap, Comb.dk_ds,     Track.Lap, 'makima');
 Track.Tangent   = interp1(Comb.Lap, Comb.Tangent,   Track.Lap, 'makima');
 
 % Adjusting the tangential angle range to (-pi, +pi)
-% This can be commented out if it is preferred to range in (0, 2*pi)
 Track.Tangent(round(end/2):end) = Track.Tangent(round(end/2):end) - 2*pi;
 % Floating-point error fix
 Track.Tangent(abs(Track.Tangent)        < 1e-14) = 0;  
@@ -365,12 +398,27 @@ Track.Tangent(abs(Track.Tangent - pi)   < 1e-14) =  pi;
 Track.Tangent(abs(Track.Tangent + pi)   < 1e-14) = -pi;
 
 % Setting the track meta data
-Track.Properties.VariableUnits = {'m', 'm', 'm', 'm^-1', 'm', 'm^-2', 'rad'};
+Track.Properties.VariableUnits = {'m','m','m','m', 'm^-1','m','m^-2','rad'};
 Track = addprop(Track, {'Info', 'Edge'}, repmat({'table'},2,1)); 
 Track.Properties.CustomProperties.Info = Info;
 Track.Properties.CustomProperties.Edge = Edge;
 
+%% Bank Angle 
+if ~any(isnan(Bank))
+    Min = min(Bank);
+    Max = max(Bank);
+    tau = linspace(0, 2*pi, height(Track))';
+    Track.BankAngle = (Max - Min)/2*sin(2*tau - pi/2) + (Max + Min)/2;
+    
+    if ~isnan(Width)
+        % (x, y, z) coordinates of the top of the track
+        Track.X_Top = Track.X + Width*cosd(Track.BankAngle).*sin(Track.Tangent);
+        Track.Y_Top = Track.Y - Width*cosd(Track.BankAngle).*cos(Track.Tangent);
+        Track.Z_Top = Track.Z + Width*sind(Track.BankAngle);
+    end
+end
+
 % Saving the data to a file
-if ~isempty(FileName)
-    writetable(Track, FileName);
+if ismember('FileName', fieldnames(Options))
+    writetable(Track, Options.FileName);
 end

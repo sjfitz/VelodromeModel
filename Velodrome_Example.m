@@ -5,23 +5,26 @@ clear
 clc
 
 % Inputs 
-Y = 23.0;       % [m]   Track half-width
+Y = 23.0;       % [m]   Track half-span
 R = 22.0;       % [m]   Bend apex radius
 L = 250;        % [m]   Lap length
 S = 0.1;        % [m]   Resolution
 Bank_min = 13;  % [deg] Minimum bank angle
 Bank_max = 43;  % [deg] Maximum bank angle
+Width = 7.5;    % [m]   Track width
+
+Bank = [Bank_min, Bank_max];
 
 % Power function
-n = 1;          % [#]   Curvature power
+% n = 1;          % [#]   Curvature power
 
 % Sinusoidal function
-% n = 'sine';
+n = 'sine';
 
-Track = VelodromeModel2a(Y, R, n, L, [Bank_min, Bank_max], S);
+Track = VelodromeModel(Y, R, n, L, 'bank',Bank, 'Width',Width, 'Resolution',S);
 
 % To save the data 
-% Track = VelodromeModel(Y, R, n, L, S, 'TrackData.csv');
+% Track = VelodromeModel(Y, R, n, L, 'FileName','TrackData.csv');
 
 % A structure with the track defining values 
 Info = Track.Properties.CustomProperties.Info;
@@ -35,6 +38,7 @@ fprintf('%20s: %5.2f m\n', 'Bend length',   	Info.L_Bnd)
 fprintf('Track:\n')
 disp(head(Track))
 
+%% Plotting - All data 
 figure; 
 
 %%%%%%%%%% (x, y) coordinates
@@ -96,3 +100,25 @@ title('Tangential angle')
 xlim([0, L])
 yticks((-1:0.5:1)*pi)
 yticklabels({'-\pi', '-\pi/2', '0', '\pi/2', '\pi'})
+
+%% Plotting - 3D view 
+if ~isnan(Info.Width)
+    figure;
+    hold on
+    box  on
+    grid on
+    
+    plot3(Track.X, Track.Y, Track.Z, 'k', 'linewidth',2);
+    plot3(Track.X_Top, Track.Y_Top, Track.Z_Top, 'k', 'linewidth',2);
+    surf(...
+        [Track.X, Track.X_Top], ...
+        [Track.Y, Track.Y_Top], ...
+        [Track.Z, Track.Z_Top], 'EdgeColor','none');
+    
+    axis equal
+    xlabel('X [m]')
+    ylabel('Y [m]')
+    zlabel('Z [m]')
+    title('3D view')
+    view([15, 20])
+end

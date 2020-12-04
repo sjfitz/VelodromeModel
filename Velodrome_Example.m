@@ -21,7 +21,11 @@ Bank = [Bank_min, Bank_max];
 % Sinusoidal function
 n = 'sine';
 
-Track = VelodromeModel(Y, R, n, L, 'bank',Bank, 'Width',Width, 'Resolution',S);
+% Simple inputs 
+Track = VelodromeModel(Y, R, n);
+
+% All inputs
+% Track = VelodromeModel(Y, R, n, L, 'Bank',Bank, 'Width',Width, 'Resolution',S);
 
 % To save the data 
 % Track = VelodromeModel(Y, R, n, L, 'FileName','TrackData.csv');
@@ -59,12 +63,14 @@ set(gca, 'YLim',get(gca, 'YLim')*1.10)
 % axis padded
 
 %%%%%%%%%% Bank Angle
-subplot(3,2,2)
-plot(Track.Lap, Track.BankAngle)
-xlabel('Lap Position [m]')
-ylabel('\beta [deg]')
-title('Bank Angle')
-xlim([0, L])
+if ~isequal(Info.Bank, [0, 0])
+    subplot(3,2,2)
+    plot(Track.Lap, Track.BankAngle)
+    xlabel('Lap Position [m]')
+    ylabel('\beta [deg]')
+    title('Bank Angle')
+    xlim([0, L])
+end
 
 %%%%%%%%%% Curvature
 subplot(3,2,3)
@@ -102,7 +108,7 @@ yticks((-1:0.5:1)*pi)
 yticklabels({'-\pi', '-\pi/2', '0', '\pi/2', '\pi'})
 
 %% Plotting - 3D view 
-if ~isnan(Info.Width)
+if Info.Width ~= 0
     figure;
     hold on
     box  on

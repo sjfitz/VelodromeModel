@@ -1,4 +1,4 @@
-function Track = VelodromeModel(Y, R, n, L_L, Options)
+function Track = VelodromeModel(Y, R, n, L_L, O)
 % VelodromeModel creates a velodrome track black-line model that consists of 
 % two straights, two circular arc bends and four transition curves between the 
 % bends and the straights. The transition curves are based on two different
@@ -47,7 +47,7 @@ function Track = VelodromeModel(Y, R, n, L_L, Options)
 %                       OR
 %               (1 x n char)    'sine' Use the sinusoidal curvature profile. 
 %   L_L         (1 x 1 double)  [m] Lap length. Default 250.
-% Inputs (Name-value pairs) (These are not required). 
+% Inputs (Name-value pairs) (optional) 
 %   Bank        (1 x 2 double)  [deg/rad] Create a simple sinusoidal bank angle:
 %               The minimum and maximum values of the bank angle. This is a 
 %               resonable first approximation but a detailed survey is better. 
@@ -89,33 +89,22 @@ function Track = VelodromeModel(Y, R, n, L_L, Options)
 
 %% Inputs 
 arguments
-    Y           (1,1) {double, mustBePositive}
-    R           (1,1) {double, mustBePositive}
-    n           (1,:) {double, char} = 1
-    L_L         (1,1) {double, mustBePositive} = 250
-    Options.Bank        (1,2) {double, mustBeNonnegative}
-    Options.Width       (1,1) {double, mustBePositive}
-    Options.Resolution  (1,1) {double, mustBePositive} = 1
-    Options.FileName    (:,:) {char, string}
+    Y               (1,1) {double, mustBePositive}
+    R               (1,1) {double, mustBePositive}
+    n               (1,:) {double, char} = 1
+    L_L             (1,1) {double, mustBePositive} = 250
+    O.Bank          (1,2) {double, mustBeNonnegative} = [0, 0]
+    O.Width         (1,1) {double, mustBeNonnegative} = 0
+    O.Resolution    (1,1) {double, mustBePositive} = 1
+    O.FileName      (1,:) {char, string}
 end
-if ismember('Bank', fieldnames(Options))
-    Bank = Options.Bank;
-else
-    Bank = nan;
-end
-if ismember('Width', fieldnames(Options))
-    Width = Options.Width;
-else
-    Width = nan;
-end
-Resolution = Options.Resolution;
 
 nDataP = 2000; % [#] Number of data points for internal calculations
 
 % Basic bounds
 assert(Y < L_L/(2*pi), 'The half-span Y must be < L_L/(2*pi).')
 assert(R < Y, 'The radius R must be < Y.')
-assert(Resolution < L_L/25, 'The resolution must be << L_Lap.')
+assert(O.Resolution < L_L/25, 'The resolution must be << L_Lap.')
 
 %% Transition curve calculations 
 if isnumeric(n) 
@@ -197,6 +186,9 @@ s       = t;                                % [m]   Arc length
 psi     = Ki(t, L_T);                       % [rad] Tangential angle
 kappa   = K( t, L_T);                       % [m^-1] Curvature
 dk_ds   = Kd(t, L_T);                       % [m^-2] Curvature derivative
+
+% The lap position of each change between track segments 
+Transition = cumsum([0, L_S, L_T, 2*L_B, L_T, 2*L_S, L_T, 2*L_B, L_T, L_S]);
 
 %% The (x, y) coordinates for each track segment
 % Moving the origin to the centre of the velodrome
@@ -373,15 +365,15 @@ Info.L_Bnd      = L_B;
 Info.theta      = theta;
 Info.psi_1      = psi_1;
 Info.BendCentre = [xBc, yBc];
-Info.Trns       = cumsum([0, L_S, L_T, 2*L_B, L_T, 2*L_S, L_T, 2*L_B, L_T, L_S]);
+Info.Transition = Transition;
 Info.Continuity = Continuity;
-Info.Resolution = Resolution;
-Info.Bank       = Bank;
-Info.Width      = Width;
+Info.Bank       = O.Bank;
+Info.Width      = O.Width;
+Info.Resolution = O.Resolution;
 
 %% Creating a consistently spaced table with the data
 Track = table;
-Track.Lap       = (0:Resolution:L_L)';
+Track.Lap       = (0:O.Resolution:L_L)';
 Track.X         = interp1(Comb.Lap, Comb.X,         Track.Lap, 'makima');
 Track.Y         = interp1(Comb.Lap, Comb.Y,         Track.Lap, 'makima');
 Track.Z         = zeros(height(Track),1);
@@ -404,21 +396,19 @@ Track.Properties.CustomProperties.Info = Info;
 Track.Properties.CustomProperties.Edge = Edge;
 
 %% Bank Angle 
-if ~any(isnan(Bank))
-    Min = min(Bank);
-    Max = max(Bank);
-    tau = linspace(0, 2*pi, height(Track))';
-    Track.BankAngle = (Max - Min)/2*sin(2*tau - pi/2) + (Max + Min)/2;
+if ~isequal(O.Bank, [0, 0])
+    Track.BankAngle = abs(diff(O.Bank))/2*sin(4*pi/L_L*Track.Lap-pi/2)+mean(O.Bank);
     
-    if ~isnan(Width)
-        % (x, y, z) coordinates of the top of the track
-        Track.X_Top = Track.X + Width*cosd(Track.BankAngle).*sin(Track.Tangent);
-        Track.Y_Top = Track.Y - Width*cosd(Track.BankAngle).*cos(Track.Tangent);
-        Track.Z_Top = Track.Z + Width*sind(Track.BankAngle);
+    % (x, y, z) coordinates of the top of the track
+    if O.Width ~= 0
+        Track.X_Top = Track.X + O.Width*cosd(Track.BankAngle).*sin(Track.Tangent);
+        Track.Y_Top = Track.Y - O.Width*cosd(Track.BankAngle).*cos(Track.Tangent);
+        Track.Z_Top = Track.Z + O.Width*sind(Track.BankAngle);
+        Track.Properties.VariableUnits(end-2:end) = {'m','m','m'};
     end
 end
 
-% Saving the data to a file
-if ismember('FileName', fieldnames(Options))
-    writetable(Track, Options.FileName);
+%% Saving the data to a file
+if ismember('FileName', fieldnames(O))
+    writetable(Track, O.FileName);
 end

@@ -11,7 +11,7 @@ L = 250;        % [m]   Lap length
 S = 0.1;        % [m]   Resolution
 Bank_min = 13;  % [deg] Minimum bank angle
 Bank_max = 43;  % [deg] Maximum bank angle
-Width = 7.5;    % [m]   Track width
+Width    = 7.5; % [m]   Track width
 
 Bank = [Bank_min, Bank_max];
 
@@ -22,10 +22,10 @@ Bank = [Bank_min, Bank_max];
 n = 'sine';
 
 % Simple inputs 
-Track = VelodromeModel(Y, R, n);
+% Track = VelodromeModel(Y, R, n);
 
 % All inputs
-% Track = VelodromeModel(Y, R, n, L, 'Bank',Bank, 'Width',Width, 'Resolution',S);
+Track = VelodromeModel(Y, R, n, L, 'Bank',Bank, 'Width',Width, 'Resolution',S);
 
 % To save the data 
 % Track = VelodromeModel(Y, R, n, L, 'FileName','TrackData.csv');

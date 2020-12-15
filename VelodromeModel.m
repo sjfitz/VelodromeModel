@@ -27,7 +27,7 @@ function Track = VelodromeModel(Y, R, n, L_L, O)
 % The ratio of inputs Y/R has a limited range of feasible solutions dependent on
 % L_L, R, and the curvature function that are checked before calculations begin. 
 % 
-% This function requires Matlab r2019b or later. 
+% Requires Matlab r2019b or later. 
 % 
 % Syntax
 %   Track = VelodromeModel(Y, R)
@@ -86,6 +86,9 @@ function Track = VelodromeModel(Y, R, n, L_L, O)
 %   Track = VelodromeModel(23, 22,    1,   250, 'FileName','TrackData.csv');
 %   figure; plot(Track.X, Track.Y); axis equal
 %   figure; plot(Track.Lap, Track.Curvature); 
+%
+% Submitted to Sports Engineering 
+% 'A method for modelling velodrome track geometry' 
 
 %% Inputs 
 arguments

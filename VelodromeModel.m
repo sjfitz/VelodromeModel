@@ -1,4 +1,4 @@
-function Track = VelodromeModel(Y, R, n, L_L, O)
+function Track = VelodromeModel(Y, R, n, L_L, Opts)
 % VelodromeModel creates a velodrome track black-line model that consists of 
 % two straights, two circular arc bends and four transition curves between the 
 % bends and the straights. The transition curves are based on two different
@@ -92,14 +92,14 @@ function Track = VelodromeModel(Y, R, n, L_L, O)
 
 %% Inputs 
 arguments
-    Y               (1,1) {double, mustBePositive}
-    R               (1,1) {double, mustBePositive}
+    Y               (1,1) double {mustBePositive}
+    R               (1,1) double {mustBePositive}
     n               (1,:) {double, char} = 1
-    L_L             (1,1) {double, mustBePositive} = 250
-    O.Bank          (1,2) {double, mustBeNonnegative} = [0, 0]
-    O.Width         (1,1) {double, mustBeNonnegative} = 0
-    O.Resolution    (1,1) {double, mustBePositive} = 1
-    O.FileName      (1,:) {char, string}
+    L_L             (1,1) double {mustBePositive} = 250
+    Opts.Bank       (1,2) double {mustBeNonnegative} = [0, 0]
+    Opts.Width      (1,1) double {mustBeNonnegative} = 0
+    Opts.Resolution (1,1) double {mustBePositive} = 1
+    Opts.FileName   (1,:) {char, string}
 end
 
 nDataP = 2000; % [#] Number of data points for internal calculations
@@ -107,7 +107,7 @@ nDataP = 2000; % [#] Number of data points for internal calculations
 % Basic bounds
 assert(Y < L_L/(2*pi), 'The half-span Y must be < L_L/(2*pi).')
 assert(R < Y, 'The radius R must be < Y.')
-assert(O.Resolution < L_L/25, 'The resolution must be << L_Lap.')
+assert(Opts.Resolution < L_L/25, 'The resolution must be << L_Lap.')
 
 %% Transition curve calculations 
 if isnumeric(n) 
@@ -370,13 +370,13 @@ Info.psi_1      = psi_1;
 Info.BendCentre = [xBc, yBc];
 Info.Transition = Transition;
 Info.Continuity = Continuity;
-Info.Bank       = O.Bank;
-Info.Width      = O.Width;
-Info.Resolution = O.Resolution;
+Info.Bank       = Opts.Bank;
+Info.Width      = Opts.Width;
+Info.Resolution = Opts.Resolution;
 
 %% Creating a consistently spaced table with the data
 Track = table;
-Track.Lap       = (0:O.Resolution:L_L)';
+Track.Lap       = (0:Opts.Resolution:L_L)';
 Track.X         = interp1(Comb.Lap, Comb.X,         Track.Lap, 'makima');
 Track.Y         = interp1(Comb.Lap, Comb.Y,         Track.Lap, 'makima');
 Track.Z         = zeros(height(Track),1);
@@ -399,19 +399,20 @@ Track.Properties.CustomProperties.Info = Info;
 Track.Properties.CustomProperties.Edge = Edge;
 
 %% Bank Angle 
-if ~isequal(O.Bank, [0, 0])
-    Track.BankAngle = abs(diff(O.Bank))/2*sin(4*pi/L_L*Track.Lap-pi/2)+mean(O.Bank);
+if ~isequal(Opts.Bank, [0, 0])
+    Track.BankAngle = abs(diff(Opts.Bank))/2*sin(4*pi/L_L*Track.Lap-pi/2) + ...
+        mean(Opts.Bank);
     
     % (x, y, z) coordinates of the top of the track
-    if O.Width ~= 0
-        Track.X_Top = Track.X + O.Width*cosd(Track.BankAngle).*sin(Track.Tangent);
-        Track.Y_Top = Track.Y - O.Width*cosd(Track.BankAngle).*cos(Track.Tangent);
-        Track.Z_Top = Track.Z + O.Width*sind(Track.BankAngle);
+    if Opts.Width ~= 0
+        Track.X_Top = Track.X + Opts.Width*cosd(Track.BankAngle).*sin(Track.Tangent);
+        Track.Y_Top = Track.Y - Opts.Width*cosd(Track.BankAngle).*cos(Track.Tangent);
+        Track.Z_Top = Track.Z + Opts.Width*sind(Track.BankAngle);
         Track.Properties.VariableUnits(end-2:end) = {'m','m','m'};
     end
 end
 
 %% Saving the data to a file
-if ismember('FileName', fieldnames(O))
-    writetable(Track, O.FileName);
+if ismember('FileName', fieldnames(Opts))
+    writetable(Track, Opts.FileName);
 end

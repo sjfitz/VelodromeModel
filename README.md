@@ -18,7 +18,7 @@ Requires Matlab r2019b or later.
 
 Submitted to Sports Engineering: 'A method for modelling velodrome track geometry' 
 
-The file `Velodome_Example.m` is provided to show the basic usage of this function. Shown below is the result with _L<sub>L</sub>_&nbsp;=&nbsp;250&nbsp;m, _Y_&nbsp;=&nbsp;23&nbsp;m, _R_&nbsp;=&nbsp;22&nbsp;m, and _n_&nbsp;=&nbsp;1. 
+The file `Velodome_Example.m` is provided to show the basic usage of this function. Shown below is the result with _L<sub>L</sub>_&nbsp;=&nbsp;250&nbsp;m, _Y_&nbsp;=&nbsp;23&nbsp;m, _R_&nbsp;=&nbsp;22&nbsp;m, and _n_&nbsp;=&nbsp;'sine'. 
 ![Typical Results](Images/TypicalResults.png)
 
 The bank angle can also be included to produce a complete 3D model. 

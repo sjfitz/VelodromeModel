@@ -150,9 +150,9 @@ end
 
 % Primary bounds for Y/R
 if R <= L_L/(2*pi*(n+1))
-    A_Max = pi*R/2*(n+1);                   % From psi < pi/2
+    A_Max = pi*R/2*(n+1);                   % (21) (psi < pi/2)
 else
-    A_Max = (L_L - 2*pi*R)*(n+1)/(4*n);     % From L_S > 0
+    A_Max = (L_L - 2*pi*R)*(n+1)/(4*n);     % (22) (L_S > 0)
 end
 YonR_Max = K(A_Max, A_Max)*IS(A_Max, A_Max) + cos(Ki(A_Max, A_Max));
 assert(1 < Y/R && Y/R < YonR_Max, sprintf(...
@@ -173,22 +173,22 @@ A   = A1;
 L_T = A1;
 
 % Single-value results  
-X       = IC(A, L_T) - R*sin(Ki(A, L_T));   % [m]   Bend centre X-coord
-psi_1   = Ki(A, L_T);                       % [rad] Bend start tangent angle
-theta   = pi/2 - psi_1;                     % [rad] Bend open angle
-L_B     = theta*R;                          % [m]   Bend length
-L_S     = L_L/4 - L_T - L_B;                % [m]   Straight length
+X       = IC(A, L_T) - R*sin(Ki(A, L_T));   % [m]    (13) Bend centre X-coord
+psi_1   = Ki(A, L_T);                       % [rad]  (14) Bend start tangent 
+theta   = pi/2 - psi_1;                     % [rad]  (16) Bend open angle
+L_B     = theta*R;                          % [m]    (17) Bend length
+L_S     = L_L/4 - L_T - L_B;                % [m]    (18) Straight length
 
 % Per parametric distance t
-t = linspace(0, A, nDataP)';                % [-]   Eqn parameter
+t = linspace(0, A, nDataP)';                % [-]    Eqn parameter
 for ii = 1:nDataP
-    x(ii,1) = IC(t(ii), L_T);               % [m]   x coordinate
-    y(ii,1) = IS(t(ii), L_T);               % [m]   y coordinate
+    x(ii,1) = IC(t(ii), L_T);               % [m]    ( 6) x coordinate
+    y(ii,1) = IS(t(ii), L_T);               % [m]    ( 6) y coordinate
 end
-s       = t;                                % [m]   Arc length
-psi     = Ki(t, L_T);                       % [rad] Tangential angle
-kappa   = K( t, L_T);                       % [m^-1] Curvature
-dk_ds   = Kd(t, L_T);                       % [m^-2] Curvature derivative
+s       = t;                                % [m]    ( 7) Arc length
+psi     = Ki(t, L_T);                       % [rad]  ( 8) Tangential angle
+kappa   = K( t, L_T);                       % [m^-1] ( 9) Curvature
+dk_ds   = Kd(t, L_T);                       % [m^-2] (10) Curvature derivative
 
 % The lap position of each change between track segments 
 Transition = cumsum([0, L_S, L_T, 2*L_B, L_T, 2*L_S, L_T, 2*L_B, L_T, L_S]);

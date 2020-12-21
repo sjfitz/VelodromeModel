@@ -10,7 +10,7 @@ The measurable features that define the track are:
    * _Y_: The half-span between the two straights.
    * _R_: The turn radius at the bend apex.
    * _L<sub>L</sub>_: The lap length. This is generally a known, fixed value. 
-   * _n_ The power of the change in curvature with length. Usually 1 (linear) (If a clothoid is chosen)
+   * _n_ (If a clothoid is chosen) the power of the change in curvature with length. Usually 1 (linear) 
 
 The ratio of inputs _Y/R_ has a limited range of feasible solutions dependent on _L<sub>L</sub>_, _R_, and the curvature function that are checked before calculations begin. 
 

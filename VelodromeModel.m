@@ -88,9 +88,6 @@ function Track = VelodromeModel(Y, R, n, L_L, Opts)
 %
 % Submitted to Sports Engineering 
 % 'A method for modelling velodrome track geometry' 
-% 
-% Shaun Fitzgerald
-% Created 2020-10-25 
 
 %% Inputs 
 arguments

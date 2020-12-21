@@ -48,9 +48,8 @@ function Track = VelodromeModel(Y, R, n, L_L, Opts)
 %               (1 x n char)    'sine' Use the sinusoidal curvature profile. 
 %   L_L         (1 x 1 double)  [m] Lap length. Default 250.
 % Inputs (Name-value pairs) (optional) 
-%   Bank        (1 x 2 double)  [deg/rad] Create a simple sinusoidal bank angle:
-%               The minimum and maximum values of the bank angle. This is a 
-%               resonable first approximation but a detailed survey is better. 
+%   Bank        (1 x 2 double)  [deg] Create a simple sinusoidal bank angle:
+%               The minimum and maximum values of the bank angle. 
 %                   BankAngle = (Max - Min)/2*sin(2*t - pi/2) + (Max + Min)/2
 %   Width       (1 x 1 double)  [m] The track width. 
 %   Resolution  (1 x 1 double)  [m] Resolution of output data points. 
@@ -71,7 +70,7 @@ function Track = VelodromeModel(Y, R, n, L_L, Opts)
 %                   dk_ds       [m^-2]  Derivative of curvature w.r.t. Lap
 %                   Tangent     [rad]   Tangential angle
 %               If 'Bank' is included
-%                   BankAngle   [deg/rad] Banking angle
+%                   BankAngle   [deg]   Banking angle
 %               If 'Bank' & 'Width' are included
 %                   X_Top       [m]     x-coordinate of the track top
 %                   Y_Top       [m]     y-coordinate of the track top
@@ -118,9 +117,9 @@ if isnumeric(n)
     Continuity = 'G2';
     
     % Functions
-    K  = @(v, L_T) v.^n/(R*L_T^n);              % Curvature   
-    Kd = @(v, L_T) n*v.^(n-1)/(R*L_T^n);        % Derivative 
-    Ki = @(u, L_T) u.^(n+1)/(R*L_T^n*(n+1));    % Integral
+    K  = @(v, L_T) v.^n/(R*L_T^n);                          % Curvature   
+    Kd = @(v, L_T) n*v.^(n-1)/(R*L_T^n);                    % Derivative 
+    Ki = @(u, L_T) u.^(n+1)/(R*L_T^n*(n+1));                % Integral
     IC = @(t, L_T) integral(@(u) cos(u.^(n+1)/(R*L_T^n*(n+1))), 0, t);
     IS = @(t, L_T) integral(@(u) sin(u.^(n+1)/(R*L_T^n*(n+1))), 0, t);
     
@@ -150,9 +149,9 @@ end
 
 % Primary bounds for Y/R
 if R <= L_L/(2*pi*(n+1))
-    A_Max = pi*R/2*(n+1);                   % (21) (psi < pi/2)
+    A_Max = pi*R/2*(n+1);                   % [-]    (21) (psi < pi/2)
 else
-    A_Max = (L_L - 2*pi*R)*(n+1)/(4*n);     % (22) (L_S > 0)
+    A_Max = (L_L - 2*pi*R)*(n+1)/(4*n);     % [-]    (22) (L_S > 0)
 end
 YonR_Max = K(A_Max, A_Max)*IS(A_Max, A_Max) + cos(Ki(A_Max, A_Max));
 assert(1 < Y/R && Y/R < YonR_Max, sprintf(...
@@ -402,6 +401,7 @@ Track.Properties.CustomProperties.Edge = Edge;
 if ~isequal(Opts.Bank, [0, 0])
     Track.BankAngle = abs(diff(Opts.Bank))/2*sin(4*pi/L_L*Track.Lap-pi/2) + ...
         mean(Opts.Bank);
+    Track.Properties.VariableUnits(end) = {'deg'};
     
     % (x, y, z) coordinates of the top of the track
     if Opts.Width ~= 0

@@ -16,7 +16,6 @@ function [R, delta] = RadiusFromChordAndArc(c, a)
 %   delta       (numeric) [rad] Half-open angle of the circular arc
 % 
 % Shaun Fitzgerald
-% Created 2020-09-30
 
 arguments
     c (:,:) double 

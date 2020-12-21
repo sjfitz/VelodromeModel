@@ -78,6 +78,9 @@ function Track = VelodromeModel(Y, R, n, L_L, Opts)
 %               Track also has two structures 'Info' and 'Edge' in the table
 %               custom properties that record calculation details. 
 % 
+% Shaun Fitzgerald
+% Created 2020-10-25 
+% 
 % Example usage:
 %   Track = VelodromeModel(23, 22);
 %   Track = VelodromeModel(23, 22, 'sine', 250, 'Bank',[13, 43], 'Width',7.5);

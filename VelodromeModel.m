@@ -83,11 +83,12 @@ function Track = VelodromeModel(Y, R, n, L_L, Opts)
 %   Track = VelodromeModel(23, 22, 'sine', 250, 'Bank',[13, 43], 'Width',7.5);
 %   Track = VelodromeModel(23, 22,    1,   250, 'Resolution',0.25);
 %   Track = VelodromeModel(23, 22,    1,   250, 'FileName','TrackData.csv');
-%   figure; plot(Track.X, Track.Y); axis equal
+%   figure; stackedplot(Track, 'XVariable','Lap');
+%   figure; plot(Track.X, Track.Y); axis equal;
 %   figure; plot(Track.Lap, Track.Curvature); 
 %
 % Submitted to Sports Engineering 
-% 'A method for modelling velodrome track geometry' 
+% 'The impact of transition design on the accuracy of velodrome models' 
 
 %% Inputs 
 arguments
@@ -106,7 +107,7 @@ nDataP = 2000; % [#] Number of data points for internal calculations
 % Basic bounds
 assert(Y < L_L/(2*pi), 'The half-span Y must be < L_L/(2*pi).')
 assert(R < Y, 'The radius R must be < Y.')
-assert(Opts.Resolution < L_L/25, 'The resolution must be << L_Lap.')
+assert(Opts.Resolution <= L_L/25, 'The resolution must be << L_Lap.')
 
 %% Transition curve calculations 
 if isnumeric(n) 

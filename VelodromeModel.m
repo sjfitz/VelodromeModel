@@ -88,7 +88,7 @@ function Track = VelodromeModel(Y, R, n, L_L, Opts)
 %   figure; plot(Track.Lap, Track.Curvature); 
 %
 % Submitted to Sports Engineering 
-% 'The impact of transition design on the accuracy of velodrome models' 
+% 'The impact of transition curve design on the accuracy of velodrome models' 
 
 %% Inputs 
 arguments
@@ -102,7 +102,7 @@ arguments
     Opts.FileName   (1,:) {char, string}
 end
 
-nDataP = 2000; % [#] Number of data points for internal calculations
+nDataP = 500; % [#] Number of data points for internal calculations
 
 % Basic bounds
 assert(Y < L_L/(2*pi), 'The half-span Y must be < L_L/(2*pi).')
@@ -111,7 +111,7 @@ assert(Opts.Resolution <= L_L/25, 'The resolution must be << L_Lap.')
 
 %% Transition curve calculations 
 if isnumeric(n) 
-    %% Curvature profile: Power equation 
+    %% Curvature profile: Power equation (17) 
     assert(isscalar(n) && n > 0, 'The exponent n must be scalar and > 0.')
     
     Style = sprintf('Power, n: %g', n);
@@ -128,7 +128,7 @@ if isnumeric(n)
     A0 = sqrt((n+2)*(n+1)*R*(Y - R));
     
 elseif strcmpi(n(1), 's') || strcmpi(n, 'g3')
-    %% Curvature profile: Sinusoidal 
+    %% Curvature profile: Sinusoidal (18) 
     Style = 'Sinusoidal';
     Continuity = 'G3';
     
@@ -150,9 +150,9 @@ end
 
 % Primary bounds for Y/R
 if R <= L_L/(2*pi*(n+1))
-    A_Max = pi*R/2*(n+1);                   % [-]    (21) (psi < pi/2)
+    A_Max = pi*R/2*(n+1);                   % [-]    (15) (psi < pi/2)
 else
-    A_Max = (L_L - 2*pi*R)*(n+1)/(4*n);     % [-]    (22) (L_S > 0)
+    A_Max = (L_L - 2*pi*R)*(n+1)/(4*n);     % [-]    (16) (L_S > 0)
 end
 YonR_Max = K(A_Max, A_Max)*IS(A_Max, A_Max) + cos(Ki(A_Max, A_Max));
 assert(1 < Y/R && Y/R < YonR_Max, sprintf(...
@@ -169,26 +169,33 @@ while abs(Er) > 1e-13
     cc = cc + 1;
     if cc > 2000, error('Calculation of A not converged'); end
 end
-A   = A1;
-L_T = A1;
+A   = A1;                                   % [m]    ( 9) tau_1 
+L_T = A1;                                   % [m]    (10) Transition length
 
 % Single-value results  
-X       = IC(A, L_T) - R*sin(Ki(A, L_T));   % [m]    (13) Bend centre X-coord
-psi_1   = Ki(A, L_T);                       % [rad]  (14) Bend start tangent 
-theta   = pi/2 - psi_1;                     % [rad]  (16) Bend open angle
-L_B     = theta*R;                          % [m]    (17) Bend length
-L_S     = L_L/4 - L_T - L_B;                % [m]    (18) Straight length
+X       = IC(A, L_T) - R*sin(Ki(A, L_T));   % [m]    ( 9) Bend centre X-coord
+psi_1   = Ki(A, L_T);                       % [rad]       Bend start tangent 
+theta   = pi/2 - psi_1;                     % [rad]       Bend open angle
+L_B     = theta*R;                          % [m]    (11) Bend length
+L_S     = L_L/4 - L_T - L_B;                % [m]    (12) Straight length
+
+% Using uneven coordinates so that they are biased towards the joins
+rho = linspace(0, pi, nDataP)';
+ArrayA = (1 - cos(rho))/2; 
+ArrayB = (1 - cos(rho)) - 1;
+% ArrayA = linspace( 0, 1, nDataP)';          % Linear method
+% ArrayB = linspace(-1, 1, nDataP)';
 
 % Per parametric distance t
-t = linspace(0, A, nDataP)';                % [-]    Eqn parameter
+t = A*ArrayA;                               % [-]    Eqn parameter
 for ii = 1:nDataP
-    x(ii,1) = IC(t(ii), L_T);               % [m]    ( 6) x coordinate
-    y(ii,1) = IS(t(ii), L_T);               % [m]    ( 6) y coordinate
+    x(ii,1) = IC(t(ii), L_T);               % [m]    ( 1) x coordinate
+    y(ii,1) = IS(t(ii), L_T);               % [m]    ( 1) y coordinate
 end
-s       = t;                                % [m]    ( 7) Arc length
-psi     = Ki(t, L_T);                       % [rad]  ( 8) Tangential angle
-kappa   = K( t, L_T);                       % [m^-1] ( 9) Curvature
-dk_ds   = Kd(t, L_T);                       % [m^-2] (10) Curvature derivative
+s       = t;                                % [m]    ( 2) Arc length
+psi     = Ki(t, L_T);                       % [rad]  ( 3) Tangential angle
+kappa   = K( t, L_T);                       % [m^-1] ( 4) Curvature
+dk_ds   = Kd(t, L_T);                       % [m^-2] ( 5) Curvature derivative
 
 % The lap position of each change between track segments 
 Transition = cumsum([0, L_S, L_T, 2*L_B, L_T, 2*L_S, L_T, 2*L_B, L_T, L_S]);
@@ -223,14 +230,15 @@ XY.Trn3 = [-xT, -yT];
 XY.Trn4 = flipud([-xT,  yT]);
 
 % Straights 
-XY.Str1 = [linspace(   0,  L_S, nDataP)', -Y*ones(nDataP, 1)];
-XY.Str2 = [linspace( L_S, -L_S, nDataP)',  Y*ones(nDataP, 1)];
-XY.Str3 = [linspace(-L_S,    0, nDataP)', -Y*ones(nDataP, 1)];
+s_S = L_S*ArrayA;                               % [m] Arc length
+XY.Str1 = [ L_S*ArrayA,          -Y*ones(nDataP, 1)];
+XY.Str2 = [-L_S*ArrayB,           Y*ones(nDataP, 1)];
+XY.Str3 = [-L_S*flipud(ArrayA),  -Y*ones(nDataP, 1)];
 
 % Circular bends 
-th = linspace(-theta, theta, nDataP)';         % [rad] Arc angle
-XY.Bnd1 = [ xBc + R*cos(th),        yBc + R*sin(th)];
-XY.Bnd2 = [-xBc + R*cos(th + pi),   yBc + R*sin(th + pi)];
+th = 2*theta*ArrayA;                            % [rad] Arc angle
+XY.Bnd1 = [ xBc + R*cos(th - theta),        yBc + R*sin(th - theta)];
+XY.Bnd2 = [-xBc + R*cos(th - theta + pi),   yBc + R*sin(th - theta + pi)];
 
 %% Lap distance and subsequent parameters
 %%%%% Lap distance 
@@ -239,14 +247,12 @@ Lap.Trn2 = 1*L_S + 1*L_T + 2*L_B + s;
 Lap.Trn3 = 3*L_S + 2*L_T + 2*L_B + s;
 Lap.Trn4 = 3*L_S + 3*L_T + 4*L_B + s;
 
-dsS = linspace(0, L_S, nDataP)';
-Lap.Str1 = dsS;
-Lap.Str2 = 1*L_S + 2*L_T + 2*L_B + 2*dsS;
-Lap.Str3 = 3*L_S + 4*L_T + 4*L_B + 1*dsS;
+Lap.Str1 = s_S;
+Lap.Str2 = 1*L_S + 2*L_T + 2*L_B + 2*s_S;
+Lap.Str3 = 3*L_S + 4*L_T + 4*L_B + 1*s_S;
 
-dsC = R*linspace(0, 2*theta, nDataP)';
-Lap.Bnd1 = 1*L_S + 1*L_T + dsC;
-Lap.Bnd2 = 3*L_S + 3*L_T + 2*L_B + dsC;
+Lap.Bnd1 = 1*L_S + 1*L_T + R*th;
+Lap.Bnd2 = 3*L_S + 3*L_T + 2*L_B + R*th;
 
 %%%%% Curvature 
 Curv.Trn1 = kappa;
@@ -401,7 +407,7 @@ Track.Properties.CustomProperties.Edge = Edge;
 %% Bank Angle 
 if ~isequal(Opts.Bank, [0, 0])
     Track.BankAngle = abs(diff(Opts.Bank))/2*sin(4*pi/L_L*Track.Lap-pi/2) + ...
-        mean(Opts.Bank);
+        mean(Opts.Bank);                            % [deg] (19) Bank angle
     Track.Properties.VariableUnits(end) = {'deg'};
     
     % (x, y, z) coordinates of the top of the track

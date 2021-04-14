@@ -67,7 +67,7 @@ function Track = VelodromeModel(Y, R, n, L_L, Opts)
 %                   Z           [m]     z-coordinate of the datum line (0)
 %                   Curvature   [m^-1]  Curvature
 %                   Radius      [m]     Radius of curvature
-%                   dk_ds       [m^-2]  Derivative of curvature w.r.t. Lap
+%                   dk_ds       [m^-2]  1st derivative of curvature w.r.t. Lap
 %                   Tangent     [rad]   Tangential angle
 %               If 'Bank' is included
 %                   BankAngle   [deg]   Banking angle
@@ -119,7 +119,7 @@ if isnumeric(n)
     
     % Functions
     K  = @(v, L_T) v.^n/(R*L_T^n);                          % Curvature   
-    Kd = @(v, L_T) n*v.^(n-1)/(R*L_T^n);                    % Derivative 
+    Kd = @(v, L_T) n*v.^(n-1)/(R*L_T^n);                    % 1st derivative 
     Ki = @(u, L_T) u.^(n+1)/(R*L_T^n*(n+1));                % Integral
     IC = @(t, L_T) integral(@(u) cos(u.^(n+1)/(R*L_T^n*(n+1))), 0, t);
     IS = @(t, L_T) integral(@(u) sin(u.^(n+1)/(R*L_T^n*(n+1))), 0, t);
@@ -127,14 +127,14 @@ if isnumeric(n)
     % The initial value is found with the first-degree Maclaurin polynomial
     A0 = sqrt((n+2)*(n+1)*R*(Y - R));
     
-elseif strcmpi(n(1), 's') || strcmpi(n, 'g3')
+elseif strcmpi(n(1), 's')
     %% Curvature profile: Sinusoidal (18) 
     Style = 'Sinusoidal';
     Continuity = 'G3';
     
     % Functions
     K  = @(v, L_T) (sin(pi/L_T*v - pi/2) + 1)/2/R;          % Curvature 
-    Kd = @(v, L_T)  cos(pi/L_T*v - pi/2)*pi/(2*R*L_T);      % Derivative 
+    Kd = @(v, L_T)  cos(pi/L_T*v - pi/2)*pi/(2*R*L_T);      % 1st derivative 
     Ki = @(u, L_T) (-L_T/pi*cos(pi/L_T*u - pi/2) + u)/2/R;  % Integral
     IC = @(t, L_T) integral(@(u) cos((-L_T/pi*cos(pi/L_T*u - pi/2) + u)/2/R), 0, t);
     IS = @(t, L_T) integral(@(u) sin((-L_T/pi*cos(pi/L_T*u - pi/2) + u)/2/R), 0, t);
@@ -174,7 +174,7 @@ L_T = A1;                                   % [m]    (10) Transition length
 
 % Single-value results  
 X       = IC(A, L_T) - R*sin(Ki(A, L_T));   % [m]    ( 9) Bend centre X-coord
-psi_1   = Ki(A, L_T);                       % [rad]       Bend start tangent 
+psi_1   = Ki(A, L_T);                       % [rad]  ( 3) Bend start tangent 
 theta   = pi/2 - psi_1;                     % [rad]       Bend open angle
 L_B     = theta*R;                          % [m]    (11) Bend length
 L_S     = L_L/4 - L_T - L_B;                % [m]    (12) Straight length
@@ -290,8 +290,8 @@ Tangent.Str1 = zeros(nDataP,1);
 Tangent.Str2 = zeros(nDataP,1) +   pi;
 Tangent.Str3 = zeros(nDataP,1) + 2*pi;
 
-Tangent.Bnd1 = th + 1/2*pi;
-Tangent.Bnd2 = th + 3/2*pi;
+Tangent.Bnd1 = th - theta + 1/2*pi;
+Tangent.Bnd2 = th - theta + 3/2*pi;
 
 %% Combining the data into one (unequally spaced) lap distance 
 Comb.X = [...

@@ -58,7 +58,7 @@ function Track = VelodromeModel(Y, R, n, L_L, Opts)
 %                   File type based on extension: .txt, .dat, .csv, .xls, .xlsx
 % 
 % Output 
-%   Track     	(m x 8+ table) A table of the data vs track distance.
+%   Track     	(m x 9+ table) A table of the data vs track distance.
 %                       m = L_L/Resolution + 1. 
 %               Variables:
 %                   Lap         [m]     Lap distance from the pursuit line
@@ -68,6 +68,7 @@ function Track = VelodromeModel(Y, R, n, L_L, Opts)
 %                   Curvature   [m^-1]  Curvature
 %                   Radius      [m]     Radius of curvature
 %                   dk_ds       [m^-2]  1st derivative of curvature w.r.t. Lap
+%                   d2k_ds2     [m^-3]  2nd derivative of curvature w.r.t. Lap
 %                   Tangent     [rad]   Tangential angle
 %               If 'Bank' is included
 %                   BankAngle   [deg]   Banking angle
@@ -118,9 +119,10 @@ if isnumeric(n)
     Continuity = 'G2';
     
     % Functions
-    K  = @(v, L_T) v.^n/(R*L_T^n);                          % Curvature   
-    Kd = @(v, L_T) n*v.^(n-1)/(R*L_T^n);                    % 1st derivative 
-    Ki = @(u, L_T) u.^(n+1)/(R*L_T^n*(n+1));                % Integral
+    K  = @(v, L_T) v.^n/(R*L_T^n);                              % Curvature   
+    Kd = @(v, L_T) n*v.^(n-1)/(R*L_T^n);                        % 1st derivative 
+    K2d= @(v, L_T) n*(n-1)*v.^(n-2)/(R*L_T^n);                  % 2nd derivative 
+    Ki = @(u, L_T) u.^(n+1)/(R*L_T^n*(n+1));                    % Integral
     IC = @(t, L_T) integral(@(u) cos(u.^(n+1)/(R*L_T^n*(n+1))), 0, t);
     IS = @(t, L_T) integral(@(u) sin(u.^(n+1)/(R*L_T^n*(n+1))), 0, t);
     
@@ -133,9 +135,10 @@ elseif strcmpi(n(1), 's')
     Continuity = 'G3';
     
     % Functions
-    K  = @(v, L_T) (sin(pi/L_T*v - pi/2) + 1)/2/R;          % Curvature 
-    Kd = @(v, L_T)  cos(pi/L_T*v - pi/2)*pi/(2*R*L_T);      % 1st derivative 
-    Ki = @(u, L_T) (-L_T/pi*cos(pi/L_T*u - pi/2) + u)/2/R;  % Integral
+    K  = @(v, L_T) (sin(pi/L_T*v - pi/2) + 1)/2/R;              % Curvature 
+    Kd = @(v, L_T)  cos(pi/L_T*v - pi/2)*pi/(2*R*L_T);          % 1st derivative 
+    K2d= @(v, L_T) -sin(pi/L_T*v - pi/2)*pi^2/(2*R*L_T^2);      % 2nd derivative 
+    Ki = @(u, L_T) (-L_T/pi*cos(pi/L_T*u - pi/2) + u)/2/R;      % Integral
     IC = @(t, L_T) integral(@(u) cos((-L_T/pi*cos(pi/L_T*u - pi/2) + u)/2/R), 0, t);
     IS = @(t, L_T) integral(@(u) sin((-L_T/pi*cos(pi/L_T*u - pi/2) + u)/2/R), 0, t);
     n  = 1;
@@ -195,7 +198,9 @@ end
 s       = t;                                % [m]    ( 2) Arc length
 psi     = Ki(t, L_T);                       % [rad]  ( 3) Tangential angle
 kappa   = K( t, L_T);                       % [m^-1] ( 4) Curvature
-dk_ds   = Kd(t, L_T);                       % [m^-2] ( 5) Curvature derivative
+dk_ds   = Kd(t, L_T);                       % [m^-2] ( 5) Curvature 1st derivative
+d2k_ds2 = K2d(t, L_T);                      % [m^-3]      Curvature 2nd derivative
+d2k_ds2(isnan(d2k_ds2)) = 0;
 
 % The lap position of each change between track segments 
 Transition = cumsum([0, L_S, L_T, 2*L_B, L_T, 2*L_S, L_T, 2*L_B, L_T, L_S]);
@@ -267,7 +272,7 @@ Curv.Str3 = zeros(nDataP, 1);
 Curv.Bnd1 = ones(nDataP, 1)/R;
 Curv.Bnd2 = ones(nDataP, 1)/R;
 
-%%%%% Curvature derivative
+%%%%% Curvature 1st derivative
 CurvOnDs.Trn1 =  dk_ds;
 CurvOnDs.Trn2 = -flipud(dk_ds);
 CurvOnDs.Trn3 =  dk_ds;
@@ -279,6 +284,12 @@ CurvOnDs.Str3 = zeros(nDataP,1);
 
 CurvOnDs.Bnd1 = zeros(nDataP,1);
 CurvOnDs.Bnd2 = zeros(nDataP,1);
+
+%%%%% Curvature 2nd derivative
+CurvOnDs2.Trn1 =  d2k_ds2;
+CurvOnDs2.Trn2 = -flipud(d2k_ds2);
+CurvOnDs2.Trn3 =  d2k_ds2;
+CurvOnDs2.Trn4 = -flipud(d2k_ds2);
 
 %%%%% Tangential angle 
 Tangent.Trn1 = psi;
@@ -349,6 +360,17 @@ Comb.dk_ds = [...
     CurvOnDs.Trn4(1:end-1); ...
     CurvOnDs.Str3(1:end-1)];
 
+Comb.d2k_ds2 = [...
+    CurvOnDs.Str1(1:end-1); ...
+    CurvOnDs2.Trn1(1:end-1); ...
+    CurvOnDs.Bnd1(1:end-1); ...
+    CurvOnDs2.Trn2(1:end-1); ...
+    CurvOnDs.Str2(1:end-1); ...
+    CurvOnDs2.Trn3(1:end-1); ...
+    CurvOnDs.Bnd2(1:end-1); ...
+    CurvOnDs2.Trn4(1:end-1); ...
+    CurvOnDs.Str3(1:end-1)];
+
 Comb.Tangent = [...
     Tangent.Str1(1:end-1); ...
     Tangent.Trn1(1:end-1); ...
@@ -389,6 +411,7 @@ Track.Z         = zeros(height(Track),1);
 Track.Curvature = interp1(Comb.Lap, Comb.Curvature, Track.Lap, 'makima');
 Track.Radius    = 1./Track.Curvature;
 Track.dk_ds     = interp1(Comb.Lap, Comb.dk_ds,     Track.Lap, 'makima');
+Track.d2k_ds2   = interp1(Comb.Lap, Comb.d2k_ds2,   Track.Lap, 'makima');
 Track.Tangent   = interp1(Comb.Lap, Comb.Tangent,   Track.Lap, 'makima');
 
 % Adjusting the tangential angle range to (-pi, +pi)
@@ -399,7 +422,7 @@ Track.Tangent(abs(Track.Tangent - pi)   < 1e-14) =  pi;
 Track.Tangent(abs(Track.Tangent + pi)   < 1e-14) = -pi;
 
 % Setting the track meta data
-Track.Properties.VariableUnits = {'m','m','m','m', 'm^-1','m','m^-2','rad'};
+Track.Properties.VariableUnits = {'m','m','m','m', 'm^-1','m','m^-2','m^-3','rad'};
 Track = addprop(Track, {'Info', 'Edge'}, repmat({'table'},2,1)); 
 Track.Properties.CustomProperties.Info = Info;
 Track.Properties.CustomProperties.Edge = Edge;

@@ -111,6 +111,7 @@ assert(R < Y, 'The radius R must be < Y.')
 assert(Opts.Resolution <= L_L/25, 'The resolution must be << L_Lap.')
 
 %% Transition curve calculations 
+Input_n = n;
 if isnumeric(n) 
     %% Curvature profile: Power equation (17) 
     assert(isscalar(n) && n > 0, 'The exponent n must be scalar and > 0.')
@@ -384,6 +385,7 @@ Comb.Tangent = [...
 
 %% Saving the primary information
 Info.Style      = Style;
+Info.Input_n    = Input_n;
 Info.n          = n;
 Info.Y          = Y;
 Info.X          = X;

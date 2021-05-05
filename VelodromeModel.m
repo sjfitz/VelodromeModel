@@ -191,7 +191,7 @@ ArrayB = (1 - cos(rho)) - 1;
 % ArrayB = linspace(-1, 1, nDataP)';
 
 % Per parametric distance t
-t = A*ArrayA;                               % [-]    Eqn parameter
+t = A*ArrayA;                               % [m]    Eqn parameter
 for ii = 1:nDataP
     x(ii,1) = IC(t(ii), L_T);               % [m]    ( 1) x coordinate
     y(ii,1) = IS(t(ii), L_T);               % [m]    ( 1) y coordinate

@@ -154,7 +154,7 @@ end
 
 % Primary bounds for Y/R
 if R <= L_L/(2*pi*(n+1))
-    A_Max = pi*R/2*(n+1);                   % [-]    (15) (psi < pi/2)
+    A_Max = pi*R/2*(n+1);                   % [-]    (15) (psi_1 < pi/2)
 else
     A_Max = (L_L - 2*pi*R)*(n+1)/(4*n);     % [-]    (16) (L_S > 0)
 end
@@ -163,7 +163,7 @@ assert(1 < Y/R && Y/R < YonR_Max, sprintf(...
     'Y/R (%.4f) must be in: (1 < Y/R < %.4f) for ''%s'' curvature with R = %.4g.',...
     Y/R, YonR_Max, Style, R))
 
-% Solving for A with the Newton–Raphson method.
+% ( 9) Solving for A with the Newton–Raphson method.
 Er = 1;
 cc = 0;
 while abs(Er) > 1e-13
@@ -173,7 +173,7 @@ while abs(Er) > 1e-13
     cc = cc + 1;
     if cc > 2000, error('Calculation of A not converged'); end
 end
-A   = A1;                                   % [m]    ( 9) tau_1 
+A   = A1;                                   % [m]         tau_1 
 L_T = A1;                                   % [m]    (10) Transition length
 
 % Single-value results  

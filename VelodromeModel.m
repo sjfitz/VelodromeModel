@@ -1,4 +1,4 @@
-function Track = VelodromeModel(Y, R, n, L_L, Opts)
+function [Track, Info, Edge] = VelodromeModel(Y, R, n, L_L, Opts)
 % VelodromeModel creates a velodrome track black-line model that consists of 
 % two straights, two circular arc bends and four transition curves between the 
 % bends and the straights. The transition curves are based on different Cesaro
@@ -30,14 +30,14 @@ function Track = VelodromeModel(Y, R, n, L_L, Opts)
 % Requires Matlab r2019b or later. 
 % 
 % Syntax
-%   Track = VelodromeModel(Y, R)
-%   Track = VelodromeModel(Y, R, 1)
-%   Track = VelodromeModel(Y, R, 'sine')
-%   Track = VelodromeModel(Y, R, n, L_L)
-%   Track = VelodromeModel(..., 'Bank',[<value>, <value>])
-%   Track = VelodromeModel(..., 'Width',<value>)
-%   Track = VelodromeModel(..., 'Resolution',<value>)
-%   Track = VelodromeModel(..., 'FileName',<name>)
+%   [Track, Info, Edge] = VelodromeModel(Y, R)
+%   ... = VelodromeModel(Y, R, 1)
+%   ... = VelodromeModel(Y, R, 'sine')
+%   ... = VelodromeModel(Y, R, n, L_L)
+%   ... = VelodromeModel(..., 'Bank',[<value>, <value>])
+%   ... = VelodromeModel(..., 'Width',<value>)
+%   ... = VelodromeModel(..., 'Resolution',<value>)
+%   ... = VelodromeModel(..., 'FileName',<name>)
 % 
 % Inputs (Ordered)
 %   Y           (1 x 1 double)  [m] Half-span between the two straights.
@@ -57,7 +57,7 @@ function Track = VelodromeModel(Y, R, n, L_L, Opts)
 %   FileName    (1 x n char)    Path/filename/extension to save the output data.
 %                   File type based on extension: .txt, .dat, .csv, .xls, .xlsx
 % 
-% Output 
+% Outputs 
 %   Track     	(m x 9+ table) A table of the data vs track distance.
 %                       m = L_L/Resolution + 1. 
 %               Variables:
@@ -78,6 +78,8 @@ function Track = VelodromeModel(Y, R, n, L_L, Opts)
 %                   Z_Top       [m]     z-coordinate of the track top
 %               Track also has two structures 'Info' and 'Edge' in the table
 %               custom properties that record calculation details. 
+%   Info        (1 x 1 struct) Various track information.
+%   Edge        (1 x 1 struct) The (x, y) location of the track change points. 
 % 
 % Example usage:
 %   Track = VelodromeModel(23, 22);

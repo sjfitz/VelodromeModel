@@ -74,7 +74,7 @@ end
 
 %%%%%%%%%% Curvature
 subplot(3,2,3)
-plot(Track.Lap, Track.Curvature)
+plot(Track.Lap, Track.k)
 xlabel('Lap Position [m]')
 ylabel('\kappa [m^{-1}]')
 title('Curvature')

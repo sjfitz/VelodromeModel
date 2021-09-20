@@ -65,7 +65,7 @@ function [Track, Info, Edge] = VelodromeModel(Y, R, n, L_L, Opts)
 %                   X           [m]     x-coordinate of the datum line
 %                   Y           [m]     y-coordinate of the datum line
 %                   Z           [m]     z-coordinate of the datum line (0)
-%                   Curvature   [m^-1]  Curvature
+%                   k           [m^-1]  Curvature
 %                   Radius      [m]     Radius of curvature
 %                   dk_ds       [m^-2]  1st derivative of curvature w.r.t. Lap
 %                   d2k_ds2     [m^-3]  2nd derivative of curvature w.r.t. Lap
@@ -88,7 +88,7 @@ function [Track, Info, Edge] = VelodromeModel(Y, R, n, L_L, Opts)
 %   Track = VelodromeModel(23, 22,    1,   250, 'FileName','TrackData.csv');
 %   figure; stackedplot(Track, 'XVariable','Lap');
 %   figure; plot(Track.X, Track.Y); axis equal;
-%   figure; plot(Track.Lap, Track.Curvature); 
+%   figure; plot(Track.Lap, Track.k); 
 %
 % Submitted to Sports Engineering 
 % 'The impact of transition curve design on the accuracy of velodrome models' 
@@ -341,7 +341,7 @@ Comb.Lap = [...
     Lap.Trn4(1:end-1); ...
     Lap.Str3(1:end-1)];
 
-Comb.Curvature = [...
+Comb.k = [...
     Curv.Str1(1:end-1); ...
     Curv.Trn1(1:end-1); ...
     Curv.Bnd1(1:end-1); ...
@@ -412,8 +412,8 @@ Track.Lap       = (0:Opts.Resolution:L_L)';
 Track.X         = interp1(Comb.Lap, Comb.X,         Track.Lap, 'makima');
 Track.Y         = interp1(Comb.Lap, Comb.Y,         Track.Lap, 'makima');
 Track.Z         = zeros(height(Track),1);
-Track.Curvature = interp1(Comb.Lap, Comb.Curvature, Track.Lap, 'makima');
-Track.Radius    = 1./Track.Curvature;
+Track.k         = interp1(Comb.Lap, Comb.k, Track.Lap, 'makima');
+Track.Radius    = 1./Track.k;
 Track.dk_ds     = interp1(Comb.Lap, Comb.dk_ds,     Track.Lap, 'makima');
 Track.d2k_ds2   = interp1(Comb.Lap, Comb.d2k_ds2,   Track.Lap, 'makima');
 Track.Tangent   = interp1(Comb.Lap, Comb.Tangent,   Track.Lap, 'makima');

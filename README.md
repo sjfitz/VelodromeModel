@@ -16,7 +16,9 @@ The ratio of inputs _Y/R_ has a limited range of feasible solutions dependent on
 
 Requires Matlab r2019b or later. 
 
-The basis of this work is in an accepted manuscript:  Fitzgerald S, Kelso R, Grimshaw P, Warr A (2021) 'Impact of transition curve design on the accuracy of velodrome models', _Sports Engineering_.
+Corresponding article (accepted manuscript):
+
+Fitzgerald S., Kelso R., Grimshaw P., Warr A. (2021) 'Impact of transition curve design on the accuracy of velodrome models', _Sports Engineering_.
 
 The file `Velodome_Example.m` is provided to show the basic usage of this function. Shown below is the result with _L<sub>L</sub>_&nbsp;=&nbsp;250&nbsp;m, _Y_&nbsp;=&nbsp;23&nbsp;m, _R_&nbsp;=&nbsp;22&nbsp;m, and _n_&nbsp;=&nbsp;'sine'. 
 ![Typical Results](Images/TypicalResults.png)

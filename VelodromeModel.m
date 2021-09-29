@@ -90,7 +90,7 @@ function [Track, Info, Edge] = VelodromeModel(Y, R, n, L_L, Opts)
 %   figure; plot(Track.X, Track.Y); axis equal;
 %   figure; plot(Track.Lap, Track.k); 
 % 
-% Corresponding article:
+% Corresponding article (accepted manuscript):
 %   'Impact of transition curve design on the accuracy of velodrome models' 
 %   Sports Engineering
 %   Fitzgerald, S.(1), Kelso, R.(1), Grimshaw, P.(1,2), Warr, A.(3) 
@@ -99,7 +99,7 @@ function [Track, Info, Edge] = VelodromeModel(Y, R, n, L_L, Opts)
 %   3 Adelaide, Australia
 %   Contact: shaun.fitzgerald@adelaide.edu.au 
 % 
-% Maintained at: https://github.com/SJFitz/VelodromeModel
+% Maintained at: https://github.com/sjfitz/VelodromeModel
 
 %% Inputs 
 arguments

@@ -1,10 +1,12 @@
 # VelodromeModel
 
-VelodromeModel creates a velodrome track black-line model that consists of two straights, two circular arc bends and four transition curves between the bends and the straights. The transition curves are based on two different Ces&agrave;ro equations where the curvature along the arc length is defined. This provides controlling of the centripetal acceleration during cornering and has either _G_<sup>2</sup> or _G_<sup>3</sup> geometric continuity. 
+VelodromeModel creates a velodrome track black-line model that consists of two straights, two circular arc bends and four transition curves between the bends and the straights. The transition curves are based on different Ces&agrave;ro equations where the curvature along the arc length is defined. This provides controlling of the centripetal acceleration during cornering and has chosen levels of geometric continuity. 
 
 The first option is for a generalised clothoid (also known as a Euler spiral or Cornu spiral). Here the curvature of the transition curve is a power function of its arc length and the exponent power, _n_, is required to be selected. A typical case is for _n_&nbsp;=&nbsp;1 which is the standard Euler spiral transition curve where the curvature increases linearly along the arc length. This is a _G_<sup>2</sup> continuous curve. 
 
-The second option is for a half-sine wave curvature profile where the curvature increases from zero to the bend curvature following a sinusoidal path. This is a _G_<sup>3</sup> continuous curve. 
+The second option is for a half-sine wave curvature profile where the curvature increases from zero to the bend curvature following a sinusoidal path. This is a _G_<sup>3</sup> continuous curve. This is also called the 'cosine' curve.
+
+The third option is for a general polynomial curvature profile where the curvature increases from zero to the bend curvature following a polynomial path. This can be anything from a _G_<sup>2</sup> to _G_<sup>k</sup> path and the polynomial order depends on the chosen geometric continuity. Higher levels of continuity require longer transition lengths, providing an upper limit to the maximum achievable continuity. 
 
 The measurable features that define the track are:
    * _Y_: The half-span between the two straights.

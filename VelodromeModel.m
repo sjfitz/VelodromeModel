@@ -15,7 +15,14 @@ function [Track, Info, Edge] = VelodromeModel(Y, R, n, L_L, Opts)
 % 
 % The second option is for a half-sine wave curvature profile where the 
 %   curvature increases from zero to the bend curvature following a sinusoidal
-%   path. This is a G3 continuous curve. 
+%   path. This is a G3 continuous curve. This is also called the 'cosine' curve.
+% 
+% The third option is for a general polynomial curvature profile where the 
+%   curvature increases from zero to the bend curvature following a polynomial
+%   path. This can be anything from a G2 to G(X) path and the polynomial order
+%   depends on the chosen geometric continuity. Higher levels of continuity
+%   require longer transition lengths, providing an upper limit to the 
+%   maximum achievable continuity. 
 % 
 % The measurable features that define the track are:
 %   Y       The half-span between the two straights.
@@ -33,6 +40,9 @@ function [Track, Info, Edge] = VelodromeModel(Y, R, n, L_L, Opts)
 %   [Track, Info, Edge] = VelodromeModel(Y, R)
 %   ... = VelodromeModel(Y, R, 1)
 %   ... = VelodromeModel(Y, R, 'sine')
+%   ... = VelodromeModel(Y, R, 'G3')
+%   ... = VelodromeModel(Y, R, 'G4')
+%   ... = VelodromeModel(Y, R, 'G5')
 %   ... = VelodromeModel(Y, R, n, L_L)
 %   ... = VelodromeModel(..., 'Bank',[<value>, <value>])
 %   ... = VelodromeModel(..., 'Width',<value>)
@@ -46,7 +56,11 @@ function [Track, Info, Edge] = VelodromeModel(Y, R, n, L_L, Opts)
 %               (1 x 1 double)  #       G2 - Power
 %                   n > 0. Default 1.
 %               (1 x n char)    'sine'  G3 - Sinusoidal
+%               (1 x n char)    'g#'    G# - Polynomial
+%                   Provides any chosen level of G continuity (up to practical
+%                   limits). Higher G levels requires longer transitions. 
 %   L_L         (1 x 1 double)  [m] Lap length. Default 250.
+% 
 % Inputs (Name-value pairs) (optional) 
 %   Bank        (1 x 2 double)  [deg] Create a simple sinusoidal bank angle:
 %               The minimum and maximum values of the bank angle. 
@@ -84,6 +98,7 @@ function [Track, Info, Edge] = VelodromeModel(Y, R, n, L_L, Opts)
 % Example usage:
 %   Track = VelodromeModel(23, 22);
 %   Track = VelodromeModel(23, 22, 'sine', 250, 'Bank',[13, 43], 'Width',7.5);
+%   Track = VelodromeModel(23, 22, 'G4');
 %   Track = VelodromeModel(23, 22,    1,   250, 'Resolution',0.25);
 %   Track = VelodromeModel(23, 22,    1,   250, 'FileName','TrackData.csv');
 %   figure; stackedplot(Track, 'XVariable','Lap');
@@ -98,6 +113,9 @@ function [Track, Info, Edge] = VelodromeModel(Y, R, n, L_L, Opts)
 %   2 College of Health and Life Sciences, Hamad Bin Khalifa University, Qatar
 %   3 Adelaide, Australia
 %   Contact: shaun.fitzgerald@adelaide.edu.au 
+% Derivation of 'G# - Polynomial' option in PhD Thesis: 
+%   'Understanding the Aerodynamic Environment in Track Cycling'
+%   Shaun Fitzgerald, The University of Adelaide. 
 % 
 % Maintained at: https://github.com/sjfitz/VelodromeModel
 
@@ -140,6 +158,16 @@ if isnumeric(n)
     % The initial value is found with the first-degree Maclaurin polynomial
     A0 = sqrt((n+2)*(n+1)*R*(Y - R));
     
+    % Saving the curvature function as a string
+    CurvFunc = sprintf('K(t) = 1/(R*L_T^%g)*t^%g', n, n);
+    if n == 1
+        CurvFunc_Latex = 'K(\tau) = \frac{\tau}{RL_T}';
+    else
+        CurvFunc_Latex = [...
+            'K(\tau) = \frac{1}{R}\left(\frac{\tau}{L_T}\right)^{', ...
+            num2str(n, '%g'), '}'];
+    end
+    
 elseif strcmpi(n(1), 's')
     %% Curvature profile: Sinusoidal (18) 
     Style = 'Sinusoidal';
@@ -156,6 +184,80 @@ elseif strcmpi(n(1), 's')
     
     % The initial value is found with the first-degree Maclaurin polynomial
     A0 = sqrt(4*pi/(pi - 2)*R*(Y - R));
+    
+    % Saving the curvature function as a string
+    CurvFunc = 'K(t) = 1/(2*R)*(sin(pi/L_T*t - pi/2) + 1)';
+    CurvFunc_Latex = ...
+        'K(\tau) = \frac{1}{2R} \left(\sin\left(\frac{\pi}{L_T}\tau - \frac{\pi}{2}\right) + 1 \right)';
+    
+elseif strcmpi(n(1), 'p') || strcmpi(n(1), 'g')
+    %% Curvature profile: pth-degree polynomial 
+    g = str2double(n(2:end));       % Geometric continuity 
+    if g < 2
+        error('General polynomials only works for continuity 2 or greater.')
+    elseif isnan(g)
+        error('Incorrect input for n.')
+    end
+    p = 2*g - 3;                    % Polynomial order
+    Style = sprintf('%gth degree polynomial', p);
+    Style = strrep(Style, '1th', '1st');
+    Style = strrep(Style, '3th', '3rd');
+    Style = strrep(Style, '11st', '11th');
+    Style = strrep(Style, '13rd', '13th');
+    Continuity = sprintf('G%g', g);
+    
+    Arr_N = (0:g - 2);
+    Arr_A = factorial(p - Arr_N)./factorial(p - Arr_N - Arr_N');
+    Arr_B = [1; zeros(g - 2, 1)];
+    Ci = Arr_A\Arr_B;
+    Ci_All = Arr_A.*Ci';
+    
+    % Special conditions for the early functions where the coefficient array
+    % is smaller than the number of derivatives to be output. 
+    if g == 2
+        Ci_All(2,:) = Ci_All(1,:);
+        Ci_All(3,:) = 0;
+    elseif g == 3
+        Ci_All(3,:) = Ci_All(2,:).*[2, 1];
+    end
+    
+    % Functions
+    K  = @(v, L_T, R) 1/(R*L_T^(g-1))*sum(Ci_All(1,:)./L_T.^(g-Arr_N-2).*repmat(v,1,g-1).^(p-Arr_N),   2, 'omitnan');
+    Kd = @(v, L_T, R) 1/(R*L_T^(g-1))*sum(Ci_All(2,:)./L_T.^(g-Arr_N-2).*repmat(v,1,g-1).^(p-Arr_N-1), 2, 'omitnan');
+    K2d= @(v, L_T, R) 1/(R*L_T^(g-1))*sum(Ci_All(3,:)./L_T.^(g-Arr_N-2).*repmat(v,1,g-1).^(p-Arr_N-2), 2, 'omitnan');
+    Ki = @(u, L_T, R) 1/(R*L_T^(g-1))*sum(Ci_All(1,:)./L_T.^(g-Arr_N-2).*repmat(u,1,g-1).^(p-Arr_N+1)./(p-Arr_N+1), 2);
+    IC = @(t, L_T, R) integral(@(u) cos(1/(R*L_T^(g-1))*sum(Ci_All(1,:)./L_T.^(g-Arr_N-2).*repmat(u,1,g-1).^(p-Arr_N+1)./(p-Arr_N+1), 2, 'omitnan')), 0, t, 'ArrayValued',true);
+    IS = @(t, L_T, R) integral(@(u) sin(1/(R*L_T^(g-1))*sum(Ci_All(1,:)./L_T.^(g-Arr_N-2).*repmat(u,1,g-1).^(p-Arr_N+1)./(p-Arr_N+1), 2, 'omitnan')), 0, t, 'ArrayValued',true);
+    n  = 1;
+    
+    % The initial value is found with the first-degree Maclaurin polynomial
+    alpha = sum(Ci'./((p - Arr_N + 1).*(p - Arr_N + 2)));
+    A0 = sqrt(1/alpha*R*(Y - R));
+    
+    % Saving the curvature function as a string
+    CurvFunc = sprintf('K(t) = 1/(R*L_T^%g)*(', g-1);
+    for ii = 1:g-1
+        CurvFunc = sprintf('%s%.0f/L_T^%g*t^%g + ', ...
+            CurvFunc, Ci_All(1,ii), g-ii-1, p-ii+1);
+    end
+    CurvFunc = sprintf('%s)', CurvFunc(1:end-3));
+    
+    % Saving the curvature function as a string formatted for latex
+    CurvFunc_Latex = sprintf('%s%g%s', ...
+        'K(\tau) = \frac{1}{RL_T^', g-1, '} \left( ');
+    for ii = 1:g-2
+        CurvFunc_Latex = sprintf('%s%s%g%s%g%s{%g} + ', ...
+            CurvFunc_Latex, '\frac{', Ci_All(1, ii), '}{L_T^', ...
+            g-ii-1, '}\tau^', 2*g-ii-2);
+    end
+    ii = ii + 1;
+    CurvFunc_Latex = sprintf('%s%g%s{%g}', ...
+        CurvFunc_Latex, Ci_All(1, ii), '\tau^', 2*g-ii-2);
+    CurvFunc_Latex = sprintf('%s%s', CurvFunc_Latex, ' \right)');
+    CurvFunc_Latex = strrep(CurvFunc_Latex, '^{}', '');
+    CurvFunc_Latex = strrep(CurvFunc_Latex, 'L_T^1}', 'L_T}');
+    CurvFunc_Latex = strrep(CurvFunc_Latex, '+ \frac{-', '- \frac{');
+    CurvFunc_Latex = strrep(CurvFunc_Latex, '\left( \frac{-', '\left( -\frac{');
     
 else
     error('Unknown model type: ''%s''.', n)
@@ -413,6 +515,13 @@ Info.Continuity = Continuity;
 Info.Bank       = Opts.Bank;
 Info.Width      = Opts.Width;
 Info.Resolution = Opts.Resolution;
+Info.CurvFunc   = CurvFunc;
+Info.CurvFunc_Latex = CurvFunc_Latex;
+if strcmpi(Input_n(1), 'p') || strcmpi(Input_n(1), 'g')
+    Info.Ci_All = Ci_All;
+else
+    Info.Ci_All = nan;
+end
 
 %% Creating a consistently spaced table with the data
 Track = table;
